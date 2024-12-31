@@ -2,7 +2,6 @@ using UnityEditor;
 using UnityEngine;
 
 [CustomEditor(typeof(HexGrid))]
-
 public class HexGridEditor : Editor
 {
     void OnSceneGUI()
@@ -13,17 +12,15 @@ public class HexGridEditor : Editor
         {
             for (int x = 0; x < hexGrid.Width; x++)
             {
-                Vector3 centerPosition = HexMetrics.Center(hexGrid.HexSize, hexGrid.Orientation, x, z) + hexGrid.transform.position;
+                Vector3 centrePosition = HexMetrics.Center(hexGrid.HexSize, x, z, hexGrid.Orientation) + hexGrid.transform.position;
 
                 int centerX = x;
                 int centerZ = z;
 
                 Vector3 cubeCoord = HexMetrics.OffsetToCube(centerX, centerZ, hexGrid.Orientation);
-                Handles.Label(centerPosition + Vector3.forward * 0.5f, $"[{centerX}, {centerZ}]");
-                Handles.Label(centerPosition, $"({cubeCoord.x}, {cubeCoord.y}, {cubeCoord.z})");
+                Handles.Label(centrePosition + Vector3.forward * 0.5f, $"[{centerX}, {centerZ}]");
+                Handles.Label(centrePosition, $"({cubeCoord.x}, {cubeCoord.y}, {cubeCoord.z})");
             }
-
         }
     }
 }
-
