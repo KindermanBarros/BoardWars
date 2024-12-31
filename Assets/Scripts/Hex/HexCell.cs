@@ -7,9 +7,4 @@ public class HexCell : MonoBehaviour
     public Vector2 OffsetCoordinates { get; set; }
     public Vector3 CubeCoordinates { get; set; }
     public Vector2 AxialCoordinates { get; set; }
-
-    private void Awake()
-    {
-        gameObject.AddComponent<BoxCollider>();
-    }
 }

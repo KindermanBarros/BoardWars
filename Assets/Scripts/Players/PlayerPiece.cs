@@ -6,7 +6,6 @@ public class PlayerPiece : MonoBehaviour
     public int healthPoints = 100;
     public int attackPoints = 20;
 
-
     public void TakeDamage(int damage)
     {
         healthPoints -= damage;
@@ -18,10 +17,7 @@ public class PlayerPiece : MonoBehaviour
 
     public void Attack(PlayerPiece target)
     {
-        if (target != null)
-        {
-            target.TakeDamage(attackPoints);
-        }
+        target?.TakeDamage(attackPoints);
     }
 
     private void Die()

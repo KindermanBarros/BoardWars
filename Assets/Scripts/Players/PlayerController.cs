@@ -1,14 +1,19 @@
 using UnityEngine;
+using UnityEngine.UI;
 
 public class PlayerController : MonoBehaviour
 {
     public HexGrid hexGrid;
     public HexCell currentCell;
     public float moveSpeed = 5f;
+    public int maxMovesPerTurn = 3;
+    public Text movesText;
 
     private bool isDragging = false;
     private Vector3 offset;
     private Vector3 lastValidPosition;
+    private int availableMoves;
+    private bool isTurn = false;
 
     private void Start()
     {
@@ -18,19 +23,12 @@ public class PlayerController : MonoBehaviour
             return;
         }
 
-        currentCell = GetRandomUnoccupiedCell();
-        if (currentCell != null)
-        {
-            transform.position = currentCell.transform.position;
-            lastValidPosition = transform.position;
-        }
-
-        if (GetComponent<Collider>() == null)
-        {
-            gameObject.AddComponent<BoxCollider>();
-        }
-
+        InitializePlayerPosition();
+        AddColliderIfMissing();
         MouseController.Instance.OnLeftMouseClick += HandleLeftMouseClick;
+
+        availableMoves = maxMovesPerTurn;
+        UpdateMovesText();
     }
 
     private void OnDestroy()
@@ -40,7 +38,7 @@ public class PlayerController : MonoBehaviour
 
     private void Update()
     {
-        if (isDragging)
+        if (isDragging && isTurn)
         {
             DragPlayer();
         }
@@ -48,7 +46,7 @@ public class PlayerController : MonoBehaviour
 
     private void HandleLeftMouseClick(RaycastHit hit)
     {
-        if (hit.collider.gameObject == gameObject)
+        if (hit.collider.gameObject == gameObject && isTurn)
         {
             isDragging = true;
             offset = transform.position - GetMouseWorldPosition();
@@ -57,8 +55,11 @@ public class PlayerController : MonoBehaviour
 
     private void OnMouseUp()
     {
-        isDragging = false;
-        SnapToClosestGridCell();
+        if (isDragging)
+        {
+            isDragging = false;
+            SnapToClosestGridCell();
+        }
     }
 
     private void DragPlayer()
@@ -82,19 +83,9 @@ public class PlayerController : MonoBehaviour
         if (hexGrid == null) return;
 
         HexCell closestCell = hexGrid.GetClosestCell(transform.position);
-        if (closestCell != null)
+        if (closestCell != null && IsAdjacent(currentCell, closestCell) && FindPlayerAtCell(closestCell) == null)
         {
-            PlayerController otherPlayer = FindPlayerAtCell(closestCell);
-            if (otherPlayer != null && otherPlayer != this)
-            {
-                StartFight(otherPlayer);
-            }
-            else
-            {
-                transform.position = closestCell.transform.position;
-                currentCell = closestCell;
-                lastValidPosition = transform.position;
-            }
+            MoveToCell(closestCell);
         }
         else
         {
@@ -102,10 +93,23 @@ public class PlayerController : MonoBehaviour
         }
     }
 
+    private void MoveToCell(HexCell cell)
+    {
+        transform.position = cell.transform.position;
+        currentCell = cell;
+        lastValidPosition = transform.position;
+        availableMoves--;
+        UpdateMovesText();
+
+        if (availableMoves <= 0)
+        {
+            GameManager.Instance.EndTurn();
+        }
+    }
+
     private PlayerController FindPlayerAtCell(HexCell cell)
     {
-        PlayerController[] players = FindObjectsOfType<PlayerController>();
-        foreach (PlayerController player in players)
+        foreach (PlayerController player in FindObjectsOfType<PlayerController>())
         {
             if (player.currentCell == cell)
             {
@@ -147,5 +151,68 @@ public class PlayerController : MonoBehaviour
         } while (FindPlayerAtCell(randomCell) != null);
 
         return randomCell;
+    }
+
+    private bool IsAdjacent(HexCell cell1, HexCell cell2)
+    {
+        Vector3[] directions = new Vector3[]
+        {
+            new Vector3(1, -1, 0), new Vector3(1, 0, -1), new Vector3(0, 1, -1),
+            new Vector3(-1, 1, 0), new Vector3(-1, 0, 1), new Vector3(0, -1, 1)
+        };
+
+        foreach (Vector3 direction in directions)
+        {
+            if (cell1.CubeCoordinates + direction == cell2.CubeCoordinates)
+            {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private void HighlightPossibleMovements()
+    {
+        hexGrid.HighlightCells(currentCell);
+    }
+
+    private void UpdateMovesText()
+    {
+        if (movesText != null)
+        {
+            movesText.text = $"Moves: {availableMoves}";
+        }
+    }
+
+    public void EndTurn()
+    {
+        isTurn = false;
+        hexGrid.ClearHighlights();
+    }
+
+    public void StartTurn()
+    {
+        isTurn = true;
+        availableMoves = maxMovesPerTurn;
+        UpdateMovesText();
+        HighlightPossibleMovements();
+    }
+
+    private void InitializePlayerPosition()
+    {
+        currentCell = GetRandomUnoccupiedCell();
+        if (currentCell != null)
+        {
+            transform.position = currentCell.transform.position;
+            lastValidPosition = transform.position;
+        }
+    }
+
+    private void AddColliderIfMissing()
+    {
+        if (GetComponent<Collider>() == null)
+        {
+            gameObject.AddComponent<BoxCollider>();
+        }
     }
 }

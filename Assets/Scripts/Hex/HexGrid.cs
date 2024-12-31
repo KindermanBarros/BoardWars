@@ -1,5 +1,4 @@
 using UnityEngine;
-using System;
 
 public class HexGrid : MonoBehaviour
 {
@@ -7,8 +6,10 @@ public class HexGrid : MonoBehaviour
     [field: SerializeField] public int Width { get; private set; }
     [field: SerializeField] public int Height { get; private set; }
     [field: SerializeField] public float HexSize { get; private set; }
+    [field: SerializeField] public Material HighlightMaterial { get; private set; }
 
     private HexCell[,] cells;
+    private Material originalMaterial;
 
     private void Awake()
     {
@@ -22,24 +23,30 @@ public class HexGrid : MonoBehaviour
         {
             for (int x = 0; x < Width; x++)
             {
-                GameObject cellObject = new GameObject($"HexCell_{x}_{z}");
-                cellObject.transform.parent = this.transform;
-
-                HexCell cell = cellObject.AddComponent<HexCell>();
-                cell.Grid = this;
-                cell.HexSize = HexSize;
-                cell.OffsetCoordinates = new Vector2(x, z);
-                cell.CubeCoordinates = HexMetrics.OffsetToCube(x, z, Orientation);
-                cell.AxialCoordinates = HexMetrics.OffsetToAxail(x, z, Orientation);
-
-                cellObject.transform.localPosition = CalculatePosition(x, z);
-
-                MeshRenderer renderer = cellObject.AddComponent<MeshRenderer>();
-                renderer.material = new Material(Shader.Find("Standard"));
-
-                cells[x, z] = cell;
+                CreateCell(x, z);
             }
         }
+    }
+
+    private void CreateCell(int x, int z)
+    {
+        GameObject cellObject = new GameObject($"HexCell_{x}_{z}");
+        cellObject.transform.parent = this.transform;
+
+        HexCell cell = cellObject.AddComponent<HexCell>();
+        cell.Grid = this;
+        cell.HexSize = HexSize;
+        cell.OffsetCoordinates = new Vector2(x, z);
+        cell.CubeCoordinates = HexMetrics.OffsetToCube(x, z, Orientation);
+        cell.AxialCoordinates = HexMetrics.OffsetToAxail(x, z, Orientation);
+
+        cellObject.transform.localPosition = CalculatePosition(x, z);
+
+        MeshRenderer renderer = cellObject.AddComponent<MeshRenderer>();
+        renderer.material = new Material(Shader.Find("Standard"));
+        originalMaterial = renderer.material;
+
+        cells[x, z] = cell;
     }
 
     private Vector3 CalculatePosition(int x, int z)
@@ -62,31 +69,53 @@ public class HexGrid : MonoBehaviour
     {
         int x = (int)offsetCoordinates.x;
         int z = (int)offsetCoordinates.y;
-        if (IsValidCell(offsetCoordinates))
-        {
-            return cells[x, z];
-        }
-        return null;
+        return IsValidCell(offsetCoordinates) ? cells[x, z] : null;
     }
 
-    internal void HighlightCells(Vector2 currentCell)
+    public void HighlightCells(HexCell currentCell)
     {
-        int x = (int)currentCell.x;
-        int z = (int)currentCell.y;
-        if (IsValidCell(currentCell))
+        Vector3[] directions = new Vector3[]
         {
-            HexCell cell = cells[x, z];
-            MeshRenderer renderer = cell.GetComponent<MeshRenderer>();
-            if (renderer != null)
+            new Vector3(1, -1, 0), new Vector3(1, 0, -1), new Vector3(0, 1, -1),
+            new Vector3(-1, 1, 0), new Vector3(-1, 0, 1), new Vector3(0, -1, 1)
+        };
+
+        foreach (Vector3 direction in directions)
+        {
+            HexCell adjacentCell = GetCellByCubeCoordinates(currentCell.CubeCoordinates + direction);
+            if (adjacentCell != null)
             {
-                renderer.material.color = Color.blue;
+                MeshRenderer renderer = adjacentCell.GetComponent<MeshRenderer>();
+                if (renderer != null)
+                {
+                    renderer.material = HighlightMaterial;
+                }
             }
         }
     }
 
-    internal void ClearHighlights()
+    public void ClearHighlights()
     {
-        throw new NotImplementedException();
+        foreach (HexCell cell in cells)
+        {
+            MeshRenderer renderer = cell.GetComponent<MeshRenderer>();
+            if (renderer != null)
+            {
+                renderer.material = originalMaterial;
+            }
+        }
+    }
+
+    private HexCell GetCellByCubeCoordinates(Vector3 cubeCoordinates)
+    {
+        foreach (HexCell cell in cells)
+        {
+            if (cell.CubeCoordinates == cubeCoordinates)
+            {
+                return cell;
+            }
+        }
+        return null;
     }
 
     public HexCell GetClosestCell(Vector3 position)
