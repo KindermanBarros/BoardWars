@@ -10,7 +10,7 @@ public class HexGridMeshGenerator : MonoBehaviour
     [field: SerializeField] public LayerMask gridLayer { get; private set; }
     [field: SerializeField] public HexGrid hexGrid { get; private set; }
     public Transform explosionTest;
-
+    private Camera currentCamera;
 
     private void Awake()
     {
@@ -124,22 +124,19 @@ public class HexGridMeshGenerator : MonoBehaviour
 
     private void OnLeftMouseClick(RaycastHit hit)
     {
-        Debug.Log("Hit object: " + hit.transform.name + " at position " + hit.point);
-        float localX = hit.point.x - hit.transform.position.x;
-        float localZ = hit.point.z - hit.transform.position.z;
-
-        Debug.Log("Offset Position: " + HexMetrics.CoordinateToOffset(localX, localZ, hexGrid.HexSize, hexGrid.Orientation));
+        if (hit.transform == transform)
+        {
+            Vector3 hitPosition = hit.point - transform.position;
+            Vector2 targetCell = HexMetrics.CoordinateToOffset(hitPosition.x, hitPosition.z, hexGrid.HexSize, hexGrid.Orientation);
+        }
     }
 
     private void OnRightMouseClick(RaycastHit hit)
     {
-        float localX = hit.point.x - hit.transform.position.x;
-        float localZ = hit.point.z - hit.transform.position.z;
-
-        Vector2 location = HexMetrics.CoordinateToOffset(localX, localZ, hexGrid.HexSize, hexGrid.Orientation);
-        Vector3 center = HexMetrics.Center(hexGrid.HexSize, (int)location.x, (int)location.y, hexGrid.Orientation);
-        Debug.Log("Right Clicked on Hex: " + location);
-        Instantiate(explosionTest, center, Quaternion.identity);
+        if (hit.transform == transform)
+        {
+            Vector3 hitPosition = hit.point - transform.position;
+            Vector2 targetCell = HexMetrics.CoordinateToOffset(hitPosition.x, hitPosition.z, hexGrid.HexSize, hexGrid.Orientation);
+        }
     }
-
 }

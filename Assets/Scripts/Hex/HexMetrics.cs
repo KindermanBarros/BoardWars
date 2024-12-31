@@ -54,6 +54,26 @@ public static class HexMetrics
         return centrePosition;
     }
 
+    public static Vector2[] GetAdjacentDirections(HexOrientation orientation)
+    {
+        if (orientation == HexOrientation.PointyTop)
+        {
+            return new Vector2[]
+            {
+                new Vector2(1, 0), new Vector2(1, -1), new Vector2(0, -1),
+                new Vector2(-1, 0), new Vector2(-1, 1), new Vector2(0, 1)
+            };
+        }
+        else
+        {
+            return new Vector2[]
+            {
+                new Vector2(1, 0), new Vector2(1, 1), new Vector2(0, 1),
+                new Vector2(-1, 0), new Vector2(-1, -1), new Vector2(0, -1)
+            };
+        }
+    }
+
     /*----------Coordinate Conversions-----------*/
 
     public static Vector3 OffsetToCube(Vector2 offsetCoord, HexOrientation orientation)

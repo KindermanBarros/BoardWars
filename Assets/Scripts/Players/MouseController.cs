@@ -7,7 +7,6 @@ public class MouseController : Singleton<MouseController>
     public Action<RaycastHit> OnRightMouseClick;
     public Action<RaycastHit> OnMiddleMouseClick;
 
-
     void Update()
     {
         if (Input.GetMouseButtonDown(0))
