@@ -16,6 +16,8 @@ public class PlayerPiece : MonoBehaviour
     }
 
     private const float PIECE_HEIGHT = 0.5f;
+    private const int MAX_HEALTH = 100;
+    private int temporaryAttackBonus;
 
     private void Awake()
     {
@@ -54,6 +56,36 @@ public class PlayerPiece : MonoBehaviour
         transform.position = cell.transform.position + Vector3.up * PIECE_HEIGHT;
         CurrentCell = cell;
     }
+
+    public void AddTemporaryAttack(int amount)
+    {
+        temporaryAttackBonus += amount;
+        Debug.Log($"Added {amount} temporary attack. Total attack now: {GetTotalAttack()}");
+    }
+
+    public void Heal(int amount)
+    {
+        int newHealth = Mathf.Min(Health + amount, MAX_HEALTH);
+        int actualHeal = newHealth - Health;
+        Health = newHealth;
+        Debug.Log($"Healed for {actualHeal}. Current health: {Health}/{MAX_HEALTH}");
+    }
+
+    public void OnTurnEnd()
+    {
+        if (temporaryAttackBonus > 0)
+        {
+            Debug.Log($"Removing temporary attack bonus: {temporaryAttackBonus}");
+            temporaryAttackBonus = 0;
+        }
+    }
+
+    private void EndTurn()
+    {
+        temporaryAttackBonus = 0;
+    }
+
+    public int GetTotalAttack() => Attack + temporaryAttackBonus;
 
     private IEnumerator JumpAnimation()
     {

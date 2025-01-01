@@ -183,6 +183,12 @@ MonoBehaviour:
   movesText: {fileID: 105245303}
   healthText: {fileID: 84958266}
   powerText: {fileID: 1183417108}
+  collectableTypes:
+  - {fileID: 11400000, guid: 07cc31eacbf109849972880e3c5f479d, type: 2}
+  - {fileID: 11400000, guid: 67db5858ef90e0d40849301bbaa57a38, type: 2}
+  - {fileID: 11400000, guid: 368ffece23c596f44a0149a1cf073877, type: 2}
+  collectableSpawnRate: 0.2
+  collectableRefillThreshold: 0.12
 --- !u!114 &25982045
 MonoBehaviour:
   m_ObjectHideFlags: 0

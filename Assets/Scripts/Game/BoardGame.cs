@@ -1,5 +1,6 @@
 using UnityEngine;
 using TMPro;
+using System.Collections.Generic;
 
 public class BoardGame : MonoBehaviour
 {
@@ -13,19 +14,20 @@ public class BoardGame : MonoBehaviour
     [SerializeField] private TMP_Text healthText;
     [SerializeField] private TMP_Text powerText;
 
+    [SerializeField] private CollectableType[] collectableTypes;
+    [SerializeField] private float collectableSpawnRate = 0.2f;
+    [SerializeField] private float collectableRefillThreshold = 0.1f;
+
     private int currentPlayerIndex = 0;
     private int remainingMoves;
-
     private PlayerPiece draggingPlayerPiece;
     private Vector3 dragOffset;
-    private Vector3 originalPosition;
-    private float dragDelay = 0.1f;
-    private float dragStartTime;
-
+    private Vector3 dragStartPosition;
     private Camera mainCamera;
     private bool isDragging = false;
-    private float dragThreshold = 0.1f;
-    private Vector3 dragStartPosition;
+
+    private List<HexCell> cellsWithCollectables = new List<HexCell>();
+    private int totalCollectables;
 
     public static BoardGame Instance { get; private set; }
     public Player CurrentPlayer => players[currentPlayerIndex].Player;
@@ -59,6 +61,8 @@ public class BoardGame : MonoBehaviour
 
         Debug.Log($"Current player position: {players[currentPlayerIndex].transform.position}");
         Debug.Log($"Remaining moves: {remainingMoves}");
+
+        SpawnInitialCollectables();
     }
 
     private void Update()
@@ -139,9 +143,10 @@ public class BoardGame : MonoBehaviour
 
     private void UpdateUI()
     {
+        PlayerPiece currentPlayer = players[currentPlayerIndex];
         movesText.text = $"Player {currentPlayerIndex + 1} Moves: {remainingMoves}";
-        healthText.text = $"Health: {players[currentPlayerIndex].Health}";
-        powerText.text = $"Power: {players[currentPlayerIndex].Attack}";
+        healthText.text = $"Health: {currentPlayer.Health}/100";
+        powerText.text = $"Power: {currentPlayer.GetTotalAttack()} ({currentPlayer.Attack} + {currentPlayer.GetTotalAttack() - currentPlayer.Attack})";
     }
 
     public void MovePlayerPiece(HexCell targetCell)
@@ -150,6 +155,14 @@ public class BoardGame : MonoBehaviour
         {
             PlayerPiece currentPlayer = players[currentPlayerIndex];
             currentPlayer.MoveTo(targetCell);
+
+            if (targetCell.CurrentCollectable != null)
+            {
+                CollectCollectable(currentPlayer, targetCell.CollectCollectable());
+                cellsWithCollectables.Remove(targetCell);
+                CheckAndRefillCollectables();
+            }
+
             remainingMoves--;
             UpdateUI();
             HighlightPossibleMoves(players[currentPlayerIndex].CurrentCell);
@@ -190,6 +203,9 @@ public class BoardGame : MonoBehaviour
 
     private void EndTurn()
     {
+        // Remove temporary effects from current player
+        players[currentPlayerIndex].OnTurnEnd();
+
         currentPlayerIndex = (currentPlayerIndex + 1) % players.Length;
         remainingMoves = maxMovesPerTurn;
         UpdateUI();
@@ -298,5 +314,73 @@ public class BoardGame : MonoBehaviour
         }
 
         return Vector3.zero;
+    }
+
+    private void SpawnInitialCollectables()
+    {
+        int totalCells = hexGrid.Width * hexGrid.Height;
+        int desiredCollectables = Mathf.RoundToInt(totalCells * collectableSpawnRate);
+
+        while (cellsWithCollectables.Count < desiredCollectables)
+        {
+            HexCell cell = hexGrid.GetRandomCell();
+            if (!IsCellOccupied(cell) && cell.CurrentCollectable == null)
+            {
+                SpawnCollectable(cell);
+            }
+        }
+        totalCollectables = cellsWithCollectables.Count;
+    }
+
+    private void SpawnCollectable(HexCell cell)
+    {
+        if (collectableTypes == null || collectableTypes.Length == 0)
+        {
+            Debug.LogError("No CollectableTypes assigned to BoardGame!");
+            return;
+        }
+
+        CollectableType randomType = collectableTypes[Random.Range(0, collectableTypes.Length)];
+        if (randomType == null || randomType.visualPrefab == null)
+        {
+            Debug.LogError("Invalid CollectableType or missing visualPrefab!");
+            return;
+        }
+
+        GameObject collectableObject = Instantiate(randomType.visualPrefab);
+        var collectable = collectableObject.AddComponent<Collectable>();
+
+        Collectable.Tier tier = (Collectable.Tier)Random.Range(0, 3);
+        collectable.Initialize(randomType, tier);
+        cell.SetCollectable(collectable);
+        cellsWithCollectables.Add(cell);
+    }
+
+    private void CheckAndRefillCollectables()
+    {
+        float currentRatio = (float)cellsWithCollectables.Count / totalCollectables;
+        if (currentRatio <= collectableRefillThreshold)
+        {
+            SpawnInitialCollectables();
+        }
+    }
+
+    private void CollectCollectable(PlayerPiece player, Collectable collectable)
+    {
+        int value = collectable.GetValue();
+        switch (collectable.CollectableType)
+        {
+            case CollectableTypeEnum.ExtraMove:
+                remainingMoves += value;
+                break;
+            case CollectableTypeEnum.ExtraAttack:
+                player.AddTemporaryAttack(value);
+                break;
+            case CollectableTypeEnum.Health:
+                player.Heal(value);
+                break;
+        }
+        Destroy(collectable.gameObject);
+        UpdateUI();
     }
 }
