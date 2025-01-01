@@ -261,7 +261,7 @@ public class BoardGame : MonoBehaviour
         if (draggingPlayerPiece != null)
         {
             Vector3 targetPos = GetMouseWorldPosition() + dragOffset;
-            targetPos.y = dragStartPosition.y; // Keep the height constant
+            targetPos.y = dragStartPosition.y;
             draggingPlayerPiece.transform.position = targetPos;
         }
     }

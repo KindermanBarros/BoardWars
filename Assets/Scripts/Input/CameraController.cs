@@ -7,12 +7,19 @@ public class CameraController : MonoBehaviour, IInputHandler
     [SerializeField] private float minZoom = 2f;
     [SerializeField] private float maxZoom = 20f;
     [SerializeField] private float smoothTime = 0.3f;
-    [SerializeField] private Vector3 offset = new Vector3(0, 10f, -5f); // Camera offset from target
+    [SerializeField] private Vector3 offset = new Vector3(0, 32f, -8f);
+    [SerializeField] private float tiltAngle = 60f;
+    [SerializeField] private float nearClipPlane = 0.1f;
+    [SerializeField] private float farClipPlane = 1000f;
+    [SerializeField] private float boundaryBuffer = 80f;
+    [SerializeField] private float defaultZoom = 8f; // Add this line
 
     private Camera cam;
     private Vector3 velocity = Vector3.zero;
     private Transform target;
     private Vector3 targetPosition;
+    private Vector3 gridMin;
+    private Vector3 gridMax;
 
     private void Start()
     {
@@ -20,9 +27,29 @@ public class CameraController : MonoBehaviour, IInputHandler
         if (cam != null)
         {
             cam.orthographic = true;
-            cam.orthographicSize = 10f;
+            cam.orthographicSize = defaultZoom;
+            cam.nearClipPlane = nearClipPlane;
+            cam.farClipPlane = farClipPlane;
+            transform.rotation = Quaternion.Euler(tiltAngle, 0f, 0f);
+
+            if (FindObjectOfType<HexGrid>() is HexGrid grid)
+            {
+                Vector3 gridCenter = grid.GetGridCenter();
+                CalculateGridBoundaries(grid);
+                transform.position = gridCenter + new Vector3(0, defaultZoom, -defaultZoom * 0.5f);
+            }
         }
         InputManager.Instance.RegisterHandler(this);
+    }
+
+    private void CalculateGridBoundaries(HexGrid grid)
+    {
+        float gridWidth = grid.Width * grid.HexSize * 2f;
+        float gridHeight = grid.Height * Mathf.Sqrt(3f) * grid.HexSize;
+
+        // Add extra padding to bottom boundary
+        gridMin = grid.transform.position - new Vector3(boundaryBuffer, 0, boundaryBuffer * 2f);
+        gridMax = grid.transform.position + new Vector3(gridWidth + boundaryBuffer, 0, gridHeight + boundaryBuffer);
     }
 
     public void SetTarget(Transform newTarget)
@@ -38,17 +65,15 @@ public class CameraController : MonoBehaviour, IInputHandler
     {
         if (target != null)
         {
-            // Calculate target position with offset
             Vector3 desiredPosition = target.position + offset;
 
-            // Smoothly move camera
             transform.position = Vector3.SmoothDamp(transform.position, desiredPosition, ref velocity, smoothTime);
+            transform.rotation = Quaternion.Euler(tiltAngle, 0f, 0f);
         }
     }
 
     public void HandleInput()
     {
-        // Manual camera control only when not following a target
         if (target == null)
         {
             HandleMovement();
@@ -77,7 +102,15 @@ public class CameraController : MonoBehaviour, IInputHandler
             direction += Vector3.right;
         }
 
-        transform.Translate(direction * panSpeed * Time.deltaTime, Space.World);
+        Vector3 newPosition = transform.position + direction * panSpeed * Time.deltaTime;
+
+        float halfHeight = cam.orthographicSize;
+        float halfWidth = halfHeight * cam.aspect;
+
+        newPosition.x = Mathf.Clamp(newPosition.x, gridMin.x + halfWidth, gridMax.x - halfWidth);
+        newPosition.z = Mathf.Clamp(newPosition.z, gridMin.z + halfHeight * 1.5f, gridMax.z - halfHeight);
+
+        transform.position = newPosition;
     }
 
     private void HandleZoom()
