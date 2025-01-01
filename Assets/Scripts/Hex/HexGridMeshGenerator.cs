@@ -1,16 +1,11 @@
-using System;
-using System.Collections;
-using System.Collections.Generic;
 using UnityEngine;
-
 
 [RequireComponent(typeof(MeshFilter), typeof(MeshRenderer), typeof(MeshCollider))]
 public class HexGridMeshGenerator : MonoBehaviour
 {
     [field: SerializeField] public LayerMask gridLayer { get; private set; }
     [field: SerializeField] public HexGrid hexGrid { get; private set; }
-    public Transform explosionTest;
-    private Camera currentCamera;
+    [field: SerializeField] public Material gridMaterial { get; private set; }
 
     private void Awake()
     {
@@ -19,19 +14,6 @@ public class HexGridMeshGenerator : MonoBehaviour
         if (hexGrid == null)
             Debug.LogError("HexGridMeshGenerator could not find a HexGrid component in its parent or itself.");
     }
-
-    private void OnEnable()
-    {
-        MouseController.Instance.OnLeftMouseClick += OnLeftMouseClick;
-        MouseController.Instance.OnRightMouseClick += OnRightMouseClick;
-    }
-
-    private void OnDisable()
-    {
-        MouseController.Instance.OnLeftMouseClick -= OnLeftMouseClick;
-        MouseController.Instance.OnRightMouseClick -= OnRightMouseClick;
-    }
-
 
     public void CreateHexMesh()
     {
@@ -49,6 +31,7 @@ public class HexGridMeshGenerator : MonoBehaviour
     {
         ClearHexGridMesh();
         Vector3[] vertices = new Vector3[7 * width * height];
+        Vector2[] uvs = new Vector2[7 * width * height];
 
         for (int z = 0; z < height; z++)
         {
@@ -56,9 +39,12 @@ public class HexGridMeshGenerator : MonoBehaviour
             {
                 Vector3 centrePosition = HexMetrics.Center(hexSize, x, z, orientation);
                 vertices[(z * width + x) * 7] = centrePosition;
+                uvs[(z * width + x) * 7] = new Vector2(0.5f, 0.5f);
+
                 for (int s = 0; s < HexMetrics.Corners(hexSize, orientation).Length; s++)
                 {
                     vertices[(z * width + x) * 7 + s + 1] = centrePosition + HexMetrics.Corners(hexSize, orientation)[s % 6];
+                    uvs[(z * width + x) * 7 + s + 1] = new Vector2((HexMetrics.Corners(hexSize, orientation)[s % 6].x / (hexSize * 2)) + 0.5f, (HexMetrics.Corners(hexSize, orientation)[s % 6].z / (hexSize * 2)) + 0.5f); // Corner UVs
                 }
             }
         }
@@ -74,29 +60,30 @@ public class HexGridMeshGenerator : MonoBehaviour
                     triangles[3 * 6 * (z * width + x) + s * 3 + 0] = (z * width + x) * 7;
                     triangles[3 * 6 * (z * width + x) + s * 3 + 1] = (z * width + x) * 7 + s + 1;
                     triangles[3 * 6 * (z * width + x) + s * 3 + 2] = (z * width + x) * 7 + cornerIndex;
-
-
                 }
             }
         }
 
-
-        Mesh mesh = new Mesh();
-        mesh.name = "Hex Mesh";
-        mesh.vertices = vertices;
-        mesh.triangles = triangles;
+        Mesh mesh = new()
+        {
+            name = "Hex Mesh",
+            vertices = vertices,
+            triangles = triangles,
+            uv = uvs
+        };
         mesh.RecalculateNormals();
         mesh.RecalculateBounds();
         mesh.Optimize();
         mesh.RecalculateUVDistributionMetrics();
 
-        GetComponent<MeshFilter>().sharedMesh = mesh;
+        MeshFilter meshFilter = GetComponent<MeshFilter>();
+        meshFilter.sharedMesh = mesh;
         GetComponent<MeshCollider>().sharedMesh = mesh;
 
-        int gridLayerIndex = GetLayerIndex(layerMask);
-        Debug.Log("Layer Index: " + gridLayerIndex);
+        MeshRenderer meshRenderer = GetComponent<MeshRenderer>();
+        meshRenderer.material = gridMaterial;
 
-        gameObject.layer = gridLayerIndex;
+        gameObject.layer = GetLayerIndex(layerMask);
     }
 
     public void ClearHexGridMesh()
@@ -110,33 +97,13 @@ public class HexGridMeshGenerator : MonoBehaviour
     private int GetLayerIndex(LayerMask layerMask)
     {
         int layerMaskValue = layerMask.value;
-        Debug.Log("Layer Mask Value: " + layerMaskValue);
         for (int i = 0; i < 32; i++)
         {
             if (((1 << i) & layerMaskValue) != 0)
             {
-                Debug.Log("Layer Index Loop: " + i);
                 return i;
             }
         }
         return 0;
-    }
-
-    private void OnLeftMouseClick(RaycastHit hit)
-    {
-        if (hit.transform == transform)
-        {
-            Vector3 hitPosition = hit.point - transform.position;
-            Vector2 targetCell = HexMetrics.CoordinateToOffset(hitPosition.x, hitPosition.z, hexGrid.HexSize, hexGrid.Orientation);
-        }
-    }
-
-    private void OnRightMouseClick(RaycastHit hit)
-    {
-        if (hit.transform == transform)
-        {
-            Vector3 hitPosition = hit.point - transform.position;
-            Vector2 targetCell = HexMetrics.CoordinateToOffset(hitPosition.x, hitPosition.z, hexGrid.HexSize, hexGrid.Orientation);
-        }
     }
 }
