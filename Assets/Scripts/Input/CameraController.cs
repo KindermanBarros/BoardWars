@@ -5,14 +5,14 @@ public class CameraController : MonoBehaviour, IInputHandler
     [SerializeField] private float panSpeed = 20f;
     [SerializeField] private float zoomSpeed = 20f;
     [SerializeField] private float minZoom = 2f;
-    [SerializeField] private float maxZoom = 20f;
+    [SerializeField] private float maxZoom = 32f;
     [SerializeField] private float smoothTime = 0.3f;
-    [SerializeField] private Vector3 offset = new Vector3(0, 32f, -8f);
+    [SerializeField] private Vector3 offset = new Vector3(0, 48f, -12f);
     [SerializeField] private float tiltAngle = 60f;
     [SerializeField] private float nearClipPlane = 0.1f;
     [SerializeField] private float farClipPlane = 1000f;
     [SerializeField] private float boundaryBuffer = 80f;
-    [SerializeField] private float defaultZoom = 8f; // Add this line
+    [SerializeField] private float defaultZoom = 16f;
 
     private Camera cam;
     private Vector3 velocity = Vector3.zero;
@@ -47,7 +47,6 @@ public class CameraController : MonoBehaviour, IInputHandler
         float gridWidth = grid.Width * grid.HexSize * 2f;
         float gridHeight = grid.Height * Mathf.Sqrt(3f) * grid.HexSize;
 
-        // Add extra padding to bottom boundary
         gridMin = grid.transform.position - new Vector3(boundaryBuffer, 0, boundaryBuffer * 2f);
         gridMax = grid.transform.position + new Vector3(gridWidth + boundaryBuffer, 0, gridHeight + boundaryBuffer);
     }

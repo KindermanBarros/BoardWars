@@ -1,5 +1,6 @@
 using UnityEngine;
 using System.Collections;
+using System.Linq;
 
 public class PlayerPiece : MonoBehaviour
 {
@@ -17,7 +18,8 @@ public class PlayerPiece : MonoBehaviour
 
     private const float PIECE_HEIGHT = 0.5f;
     private const int MAX_HEALTH = 100;
-    private int temporaryAttackBonus;
+    private int attackBonus;
+    private int extraDiceRolls;
 
     private void Awake()
     {
@@ -26,12 +28,6 @@ public class PlayerPiece : MonoBehaviour
         collider.size = new Vector3(0.8f, 1f, 0.8f);
         collider.center = new Vector3(0, 0.5f, 0);
         collider.isTrigger = false;
-
-        GameObject visual = GameObject.CreatePrimitive(PrimitiveType.Sphere);
-        visual.transform.SetParent(transform);
-        visual.transform.localPosition = Vector3.up * 0.5f;
-        visual.transform.localScale = Vector3.one * 0.8f;
-        Destroy(visual.GetComponent<Collider>());
     }
 
     public void Initialize(Player player, int health, int attack, HexCell startCell, PlayerType type)
@@ -39,9 +35,12 @@ public class PlayerPiece : MonoBehaviour
         Player = player;
         Health = health;
         Attack = attack;
+        attackBonus = 0;
+        extraDiceRolls = 0;
+
         CurrentCell = startCell;
+        transform.position = startCell.transform.position + Vector3.up * PIECE_HEIGHT;
         Type = type;
-        transform.position = startCell.transform.position;
     }
 
     public void MoveTo(HexCell targetCell)
@@ -49,6 +48,9 @@ public class PlayerPiece : MonoBehaviour
         CurrentCell = targetCell;
         transform.position = targetCell.transform.position + Vector3.up * PIECE_HEIGHT;
         StartCoroutine(JumpAnimation());
+
+        // Update highlights after moving
+        BoardGame.Instance.HighlightPossibleMoves(CurrentCell);
     }
 
     public void ResetPosition(HexCell cell)
@@ -59,8 +61,8 @@ public class PlayerPiece : MonoBehaviour
 
     public void AddTemporaryAttack(int amount)
     {
-        temporaryAttackBonus += amount;
-        Debug.Log($"Added {amount} temporary attack. Total attack now: {GetTotalAttack()}");
+        attackBonus += amount;
+        Debug.Log($"Added {amount} attack. Total attack now: {GetTotalAttack()}");
     }
 
     public void Heal(int amount)
@@ -71,21 +73,42 @@ public class PlayerPiece : MonoBehaviour
         Debug.Log($"Healed for {actualHeal}. Current health: {Health}/{MAX_HEALTH}");
     }
 
+    public void TakeDamage(int damage)
+    {
+        Health = Mathf.Max(0, Health - damage);
+        Debug.Log($"{gameObject.name} takes {damage} damage. Health: {Health}");
+
+        if (Health <= 0)
+        {
+            Debug.Log($"{gameObject.name} has been defeated by HP loss!");
+            PlayerPiece winner = BoardGame.Instance.players.First(p => p != this);
+            BoardGame.Instance.HandleWin(winner);
+            return;
+        }
+    }
+
     public void OnTurnEnd()
     {
-        if (temporaryAttackBonus > 0)
-        {
-            Debug.Log($"Removing temporary attack bonus: {temporaryAttackBonus}");
-            temporaryAttackBonus = 0;
-        }
+
     }
 
     private void EndTurn()
     {
-        temporaryAttackBonus = 0;
+
     }
 
-    public int GetTotalAttack() => Attack + temporaryAttackBonus;
+    public int GetTotalAttack() => Attack + attackBonus;
+
+    public void AddExtraDiceRoll(int amount)
+    {
+        extraDiceRolls += amount;
+        Debug.Log($"Added {amount} extra dice rolls. Total extra dice: {extraDiceRolls}");
+    }
+
+    public int GetExtraDiceRolls()
+    {
+        return extraDiceRolls;
+    }
 
     private IEnumerator JumpAnimation()
     {
@@ -106,5 +129,36 @@ public class PlayerPiece : MonoBehaviour
             transform.position = Vector3.Lerp(midPos, startPos, normalizedTime);
             yield return null;
         }
+    }
+
+    public void PlayResetAnimation()
+    {
+        StartCoroutine(ResetAnimation());
+    }
+
+    private IEnumerator ResetAnimation()
+    {
+        Vector3 startPos = transform.position;
+        Vector3 targetPos = CurrentCell.transform.position + Vector3.up * PIECE_HEIGHT;
+
+        Vector3 highPoint = startPos + Vector3.up * 2f;
+        float duration = 0.3f;
+
+        for (float t = 0; t < duration; t += Time.deltaTime)
+        {
+            float normalizedTime = t / duration;
+            transform.position = Vector3.Lerp(startPos, highPoint, normalizedTime);
+            yield return null;
+        }
+
+        duration = 0.2f;
+        for (float t = 0; t < duration; t += Time.deltaTime)
+        {
+            float normalizedTime = t / duration;
+            transform.position = Vector3.Lerp(highPoint, targetPos, normalizedTime);
+            yield return null;
+        }
+
+        transform.position = targetPos;
     }
 }

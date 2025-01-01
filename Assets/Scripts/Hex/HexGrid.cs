@@ -47,7 +47,7 @@ public class HexGrid : MonoBehaviour
 
         MeshRenderer renderer = cellObject.AddComponent<MeshRenderer>();
         renderer.material = material;
-        cell.OriginalMaterial = renderer.material; // Store the original material
+        cell.OriginalMaterial = renderer.material;
 
         MeshFilter meshFilter = cellObject.AddComponent<MeshFilter>();
         Mesh mesh = CreateHexMesh();
@@ -198,6 +198,25 @@ public class HexGrid : MonoBehaviour
         float gridWidth = Width * HexSize * 0.75f;
         float gridHeight = Height * Mathf.Sqrt(3f) * HexSize;
         return transform.position + new Vector3(gridWidth / 2, 0, gridHeight / 2);
+    }
+
+    public HexCell GetCellInDirection(HexCell startCell, HexCell referenceCell, int distance)
+    {
+        if (startCell == null || referenceCell == null) return null;
+
+        Vector3 direction = startCell.CubeCoordinates - referenceCell.CubeCoordinates;
+        direction.Normalize();
+
+        Vector3 targetCoords = startCell.CubeCoordinates + (direction * distance);
+
+        float x = Mathf.Round(targetCoords.x);
+        float z = Mathf.Round(targetCoords.z);
+        float y = Mathf.Round(-x - z);
+
+        Vector3 roundedCoords = new Vector3(x, y, z);
+
+        cells.TryGetValue(roundedCoords, out HexCell targetCell);
+        return targetCell;
     }
 }
 

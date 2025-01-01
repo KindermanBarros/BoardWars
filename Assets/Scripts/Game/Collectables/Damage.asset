@@ -10,11 +10,11 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 4fc450cf60b85f24aaf5e0547de7f47f, type: 3}
-  m_Name: TemporaryDamage
+  m_Name: Damage
   m_EditorClassIdentifier: 
   displayName: Army
   visualPrefab: {fileID: 919132149155446097, guid: 7694f45b3e6f47c48944acd01a41f4ab,
     type: 3}
-  baseValue: 6
+  baseValue: 2
   type: 1
   description: Temporary Attack

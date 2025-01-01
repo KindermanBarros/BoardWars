@@ -8,12 +8,12 @@ ModelImporter:
       type: UnityEngine:Material
       assembly: UnityEngine.CoreModule
       name: Cylinder004Mat
-    second: {fileID: 2100000, guid: dfaef0ff06657f2429c09a24d6ae3ec4, type: 2}
+    second: {fileID: 2100000, guid: dff15af2539190f448f472d7b62737ad, type: 2}
   - first:
       type: UnityEngine:Material
       assembly: UnityEngine.CoreModule
       name: Line009Mat
-    second: {fileID: 2100000, guid: dfaef0ff06657f2429c09a24d6ae3ec4, type: 2}
+    second: {fileID: 2100000, guid: dff15af2539190f448f472d7b62737ad, type: 2}
   materials:
     materialImportMode: 2
     materialName: 0

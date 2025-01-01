@@ -4,8 +4,10 @@ public enum CollectableTypeEnum
 {
     ExtraMove,
     ExtraAttack,
-    Health
+    Health,
+    ExtraDice
 }
+
 
 [CreateAssetMenu(fileName = "New Collectable Type", menuName = "Game/Collectable Type")]
 public class CollectableType : ScriptableObject

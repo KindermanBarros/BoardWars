@@ -23,6 +23,13 @@ public class Collectable : MonoBehaviour
 
         typeData = type;
         CollectableTier = tier;
+
+        foreach (Renderer renderer in GetComponentsInChildren<Renderer>())
+        {
+            renderer.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+            renderer.receiveShadows = true;
+        }
+
         Debug.Log($"Initialized collectable: {type.displayName} - Tier: {tier}");
     }
 
@@ -36,9 +43,9 @@ public class Collectable : MonoBehaviour
 
         return CollectableTier switch
         {
-            Tier.Small => typeData.baseValue,
-            Tier.Medium => typeData.baseValue * 2,
-            Tier.Large => typeData.baseValue * 4,
+            Tier.Small => typeData.baseValue / 2,
+            Tier.Medium => typeData.baseValue * 1,
+            Tier.Large => typeData.baseValue * 2,
             _ => typeData.baseValue
         };
     }
