@@ -64,6 +64,6 @@ Board Wars is a turn-based strategy game where players move their pieces on a he
 ## Credits
 
 - **Developer**: Kinderman
-- **Special Thanks**: SIDIA's SOLUTIONSUX TEAM
+- **Special Thanks**: SIDIA's SolutionsUX Team
 
 Enjoy playing Board Wars and may the best strategist win!
