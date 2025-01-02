@@ -32,39 +32,41 @@ public class HexGridMeshGenerator : MonoBehaviour
         ClearHexGridMesh();
         Vector3[] vertices = new Vector3[7 * width * height];
         Vector2[] uvs = new Vector2[7 * width * height];
-
-        for (int z = 0; z < height; z++)
-        {
-            for (int x = 0; x < width; x++)
-            {
-                Vector3 centrePosition = HexMetrics.Center(hexSize, x, z, orientation);
-                vertices[(z * width + x) * 7] = centrePosition;
-                uvs[(z * width + x) * 7] = new Vector2(0.5f, 0.5f);
-
-                for (int s = 0; s < HexMetrics.Corners(hexSize, orientation).Length; s++)
-                {
-                    vertices[(z * width + x) * 7 + s + 1] = centrePosition + HexMetrics.Corners(hexSize, orientation)[s % 6];
-                    uvs[(z * width + x) * 7 + s + 1] = new Vector2((HexMetrics.Corners(hexSize, orientation)[s % 6].x / (hexSize * 2)) + 0.5f, (HexMetrics.Corners(hexSize, orientation)[s % 6].z / (hexSize * 2)) + 0.5f); // Corner UVs
-                }
-            }
-        }
-
         int[] triangles = new int[3 * 6 * width * height];
+
+        Vector3[] corners = HexMetrics.Corners(hexSize, orientation);
+
+        int vertexIndex = 0;
+        int triangleIndex = 0;
+
         for (int z = 0; z < height; z++)
         {
             for (int x = 0; x < width; x++)
             {
-                for (int s = 0; s < HexMetrics.Corners(hexSize, orientation).Length; s++)
+                Vector3 centerPosition = HexMetrics.Center(hexSize, x, z, orientation);
+                vertices[vertexIndex] = centerPosition;
+                uvs[vertexIndex] = new Vector2(0.5f, 0.5f);
+
+                for (int s = 0; s < corners.Length; s++)
+                {
+                    vertices[vertexIndex + s + 1] = centerPosition + corners[s];
+                    uvs[vertexIndex + s + 1] = new Vector2((corners[s].x / (hexSize * 2)) + 0.5f, (corners[s].z / (hexSize * 2)) + 0.5f);
+                }
+
+                for (int s = 0; s < corners.Length; s++)
                 {
                     int cornerIndex = s + 2 > 6 ? s + 2 - 6 : s + 2;
-                    triangles[3 * 6 * (z * width + x) + s * 3 + 0] = (z * width + x) * 7;
-                    triangles[3 * 6 * (z * width + x) + s * 3 + 1] = (z * width + x) * 7 + s + 1;
-                    triangles[3 * 6 * (z * width + x) + s * 3 + 2] = (z * width + x) * 7 + cornerIndex;
+                    triangles[triangleIndex + s * 3] = vertexIndex;
+                    triangles[triangleIndex + s * 3 + 1] = vertexIndex + s + 1;
+                    triangles[triangleIndex + s * 3 + 2] = vertexIndex + cornerIndex;
                 }
+
+                vertexIndex += 7;
+                triangleIndex += 18;
             }
         }
 
-        Mesh mesh = new()
+        Mesh mesh = new Mesh
         {
             name = "Hex Mesh",
             vertices = vertices,

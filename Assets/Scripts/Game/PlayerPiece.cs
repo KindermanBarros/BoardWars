@@ -19,8 +19,7 @@ public class PlayerPiece : MonoBehaviour
     private const float PIECE_HEIGHT = 0.5f;
     private int MAX_HEALTH;
     private int attackBonus;
-    private int extraDiceRolls;
-
+    private int rerollCount;
 
     [SerializeField] private GameObject damageParticlePrefab;
 
@@ -45,7 +44,7 @@ public class PlayerPiece : MonoBehaviour
         Health = MAX_HEALTH;
         Attack = player.Power;
         attackBonus = 0;
-        extraDiceRolls = 0;
+        rerollCount = 0;
 
         CurrentCell = startCell;
         transform.position = startCell.transform.position + Vector3.up * PIECE_HEIGHT;
@@ -124,7 +123,7 @@ public class PlayerPiece : MonoBehaviour
     public void OnTurnEnd()
     {
         attackBonus = 0;
-        extraDiceRolls = 0;
+        rerollCount = 0;
         Debug.Log($"{gameObject.name} turn ended, reset temporary bonuses");
     }
 
@@ -137,15 +136,15 @@ public class PlayerPiece : MonoBehaviour
 
     public void AddExtraDiceRoll(int amount)
     {
-        extraDiceRolls += amount;
-        Debug.Log($"Added {amount} extra dice rolls. Total extra dice: {extraDiceRolls}");
+        rerollCount += amount;
+        Debug.Log($"Added {amount} rerolls. Total rerolls now: {rerollCount}");
+        BoardGame.Instance.UpdateUI();
     }
 
     public int GetExtraDiceRolls()
     {
-        return extraDiceRolls;
+        return rerollCount;
     }
-
 
     private IEnumerator JumpAnimation()
     {

@@ -12,6 +12,11 @@ public class HexGrid : MonoBehaviour
     [field: SerializeField] public Material[] CellMaterials { get; private set; }
 
     private Dictionary<Vector3, HexCell> cells = new Dictionary<Vector3, HexCell>();
+    private Vector3[] directions = new Vector3[]
+    {
+        new Vector3(1, 0, -1), new Vector3(1, -1, 0), new Vector3(0, -1, 1),
+        new Vector3(-1, 0, 1), new Vector3(-1, 1, 0), new Vector3(0, 1, -1)
+    };
 
     private void Awake()
     {
@@ -59,21 +64,13 @@ public class HexGrid : MonoBehaviour
 
     private void InitializeNeighbors()
     {
-        Vector3[] directions = new Vector3[]
-        {
-            new Vector3(1, 0, -1), new Vector3(1, -1, 0), new Vector3(0, -1, 1),
-            new Vector3(-1, 0, 1), new Vector3(-1, 1, 0), new Vector3(0, 1, -1)
-        };
-
         foreach (var cell in cells.Values)
         {
             foreach (Vector3 direction in directions)
             {
-                HexCell neighbor;
-                if (cells.TryGetValue(cell.CubeCoordinates + direction, out neighbor))
+                if (cells.TryGetValue(cell.CubeCoordinates + direction, out HexCell neighbor))
                 {
                     cell.AddNeighbor(neighbor);
-                    neighbor.AddNeighbor(cell);
                 }
             }
         }
@@ -135,11 +132,10 @@ public class HexGrid : MonoBehaviour
     {
         if (from == null || to == null) return int.MaxValue;
 
-        // Using cube coordinates for distance calculation
         Vector3 fromCube = from.CubeCoordinates;
         Vector3 toCube = to.CubeCoordinates;
 
-        // Calculate the Manhattan distance in cube coordinates
+
         return Mathf.Max(
             Mathf.Abs((int)(fromCube.x - toCube.x)),
             Mathf.Abs((int)(fromCube.y - toCube.y)),
@@ -152,7 +148,6 @@ public class HexGrid : MonoBehaviour
         ClearHighlights();
         if (currentCell == null) return;
 
-        // Only highlight adjacent cells
         foreach (var neighbor in currentCell.Neighbors)
         {
             if (!BoardGame.Instance.IsCellOccupied(neighbor))

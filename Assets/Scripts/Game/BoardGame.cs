@@ -2,6 +2,8 @@ using UnityEngine;
 using TMPro;
 using System.Collections.Generic;
 using System.Linq;
+using UnityEngine.UI;
+using System.Collections;
 
 public class BoardGame : MonoBehaviour
 {
@@ -12,14 +14,23 @@ public class BoardGame : MonoBehaviour
     [SerializeField] private CameraController cameraController;
     [SerializeField] private Canvas EndScreen;
 
+    [SerializeField] private TMP_Text currentPlayerText;
     [SerializeField] private TMP_Text movesText;
+    [SerializeField] private TMP_Text winsText;
     [SerializeField] private TMP_Text healthText;
     [SerializeField] private TMP_Text powerText;
     [SerializeField] private string scoreTextFormat = "(Score: {0}-{1})";
+    [SerializeField] private TMP_Text rerollCountText;
 
     [SerializeField] private CollectableType[] collectableTypes;
     [SerializeField] private float collectableSpawnRate = 0.2f;
     [SerializeField] private float collectableRefillThreshold = 0.1f;
+    [SerializeField] private GameObject diceRollUIPanel;
+    [SerializeField] private RawImage[] player1DiceImages;
+    [SerializeField] private RawImage[] player2DiceImages;
+    [SerializeField] private TMP_Text[] player1DiceNumberTexts;
+    [SerializeField] private TMP_Text[] player2DiceNumberTexts;
+    [SerializeField] private TMP_Text rerollIndicatorText;
 
     private int currentPlayerIndex = 0;
     private int remainingMoves;
@@ -39,6 +50,8 @@ public class BoardGame : MonoBehaviour
 
     public static BoardGame Instance { get; private set; }
     public Player CurrentPlayer => players[currentPlayerIndex].Player;
+
+    private bool isDiceRolling = false;
 
     private void Awake()
     {
@@ -141,16 +154,19 @@ public class BoardGame : MonoBehaviour
         return players.Any(p => p.CurrentCell == cell);
     }
 
-    private void UpdateUI()
+    public void UpdateUI()
     {
         PlayerPiece currentPlayer = players[currentPlayerIndex];
         if (!gameEnded)
         {
             string winText = string.Format(scoreTextFormat, playerWins[0], playerWins[1]);
             string variantText = $"[{currentPlayer.Player.Variant}]";
-            movesText.text = $"Player {currentPlayerIndex + 1} {variantText} | Moves: {remainingMoves}/{currentPlayer.Player.Movement} {winText}";
+            currentPlayerText.text = $"Player {currentPlayerIndex + 1} {variantText}";
+            movesText.text = $" Moves: {remainingMoves}";
+            winsText.text = $"{winText}";
             healthText.text = $"Health: {currentPlayer.Health}/{currentPlayer.Player.Health}";
-            powerText.text = $"Power: {currentPlayer.GetTotalAttack()} (Base: {currentPlayer.Attack} + Bonus: {currentPlayer.GetTemporaryAttack()})";
+            powerText.text = $"Power: {currentPlayer.GetTotalAttack()}";
+            rerollCountText.text = $"Rerolls: {currentPlayer.GetExtraDiceRolls()}";
         }
     }
 
@@ -274,7 +290,7 @@ public class BoardGame : MonoBehaviour
 
     public void MovePlayerPiece(HexCell targetCell)
     {
-        if (remainingMoves > 0)
+        if (remainingMoves > 0 && !isDiceRolling)
         {
             HandleMovement(targetCell, players[currentPlayerIndex]);
         }
@@ -425,6 +441,8 @@ public class BoardGame : MonoBehaviour
 
     private void HandleMouseDown()
     {
+        if (isDiceRolling) return;
+
         Ray ray = mainCamera.ScreenPointToRay(Input.mousePosition);
         if (Physics.Raycast(ray, out RaycastHit hit))
         {
@@ -449,6 +467,8 @@ public class BoardGame : MonoBehaviour
 
     private void HandleDragging()
     {
+        if (isDiceRolling) return;
+
         if (draggingPlayerPiece != null)
         {
             Vector3 targetPos = GetMouseWorldPosition() + dragOffset;
@@ -459,6 +479,8 @@ public class BoardGame : MonoBehaviour
 
     private void HandleMouseUp()
     {
+        if (isDiceRolling) return;
+
         if (draggingPlayerPiece != null)
         {
             Vector3 finalPosition = GetMouseWorldPosition() + dragOffset;
@@ -649,5 +671,109 @@ public class BoardGame : MonoBehaviour
         HighlightPossibleMoves(players[currentPlayerIndex].CurrentCell);
         SpawnInitialCollectables();
         UpdateCameraTarget();
+        EnablePlayerDragging();
+    }
+
+    private void EnablePlayerDragging()
+    {
+        foreach (PlayerPiece player in players)
+        {
+            player.enabled = true;
+        }
+    }
+
+    private IEnumerator AnimateDiceRoll(int[] rolls, RawImage[] diceImages, TMP_Text[] diceNumberTexts)
+    {
+        isDiceRolling = true;
+        diceRollUIPanel.SetActive(true);
+        bool isSpinning = true;
+        StartCoroutine(SpinDice(diceImages, () => isSpinning));
+
+        float rollDuration = 0.5f;
+        float elapsedTime = 0f;
+
+        while (elapsedTime < rollDuration)
+        {
+            for (int i = 0; i < diceNumberTexts.Length; i++)
+            {
+                if (i >= 0 && i < diceNumberTexts.Length)
+                {
+                    diceNumberTexts[i].text = Random.Range(1, 21).ToString();
+                }
+                else
+                {
+                    Debug.LogWarning("Index out of bounds: " + i);
+                }
+            }
+            elapsedTime += Time.deltaTime;
+            yield return null;
+        }
+
+        for (int i = 0; i < rolls.Length; i++)
+        {
+            if (i >= 0 && i < diceNumberTexts.Length)
+            {
+                diceNumberTexts[i].text = rolls[i].ToString();
+                diceImages[i].transform.rotation = Quaternion.identity;
+            }
+            else
+            {
+                Debug.LogWarning("Index out of bounds: " + i);
+            }
+        }
+
+        isSpinning = false;
+        yield return new WaitForSeconds(2f);
+
+        diceRollUIPanel.SetActive(false);
+        isDiceRolling = false;
+    }
+
+    private IEnumerator SpinDice(RawImage[] diceImages, System.Func<bool> isSpinning)
+    {
+        Vector3[] rotationOffsets = new Vector3[diceImages.Length];
+        for (int i = 0; i < diceImages.Length; i++)
+        {
+            rotationOffsets[i] = new Vector3(0, 0, Random.Range(-10f, 10f));
+        }
+
+        while (isSpinning())
+        {
+            for (int i = 0; i < diceImages.Length; i++)
+            {
+                diceImages[i].transform.Rotate(rotationOffsets[i] + Vector3.forward * 360 * Time.deltaTime);
+            }
+            yield return null;
+        }
+    }
+
+    public void ShowDiceRolls(int[] rolls, bool isPlayer1)
+    {
+        if (isPlayer1)
+        {
+            StartCoroutine(AnimateDiceRoll(rolls, player1DiceImages, player1DiceNumberTexts));
+        }
+        else
+        {
+            StartCoroutine(AnimateDiceRoll(rolls, player2DiceImages, player2DiceNumberTexts));
+        }
+    }
+
+    public void ShowRerollText(int rerollCount)
+    {
+        if (rerollIndicatorText != null)
+        {
+            rerollIndicatorText.text = $"Rerolled {rerollCount} dice{(rerollCount > 1 ? "s" : "")}";
+            StartCoroutine(ClearRerollText());
+        }
+    }
+
+    private IEnumerator ClearRerollText()
+    {
+        yield return new WaitForSeconds(2f);
+        if (rerollIndicatorText != null)
+        {
+            rerollIndicatorText.text = "";
+        }
     }
 }

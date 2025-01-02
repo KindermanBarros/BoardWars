@@ -43,8 +43,6 @@ public class MainSettings : MonoBehaviour
         CharacterVariant p1Variant = (CharacterVariant)player1Dropdown.value;
         CharacterVariant p2Variant = (CharacterVariant)player2Dropdown.value;
 
-        Debug.Log($"Starting game with P1: {p1Variant}, P2: {p2Variant}");
-
         Player player1 = new Player("Player 1", p1Variant);
         Player player2 = new Player("Player 2", p2Variant);
 
@@ -55,11 +53,28 @@ public class MainSettings : MonoBehaviour
             gameUI.SetActive(true);
             boardGame.SetActive(true);
 
+            BoardGame.Instance.enabled = true;
             BoardGame.Instance.ResetAndInitialize(player1, player2);
+            EnableGameComponents();
         }
         else
         {
             Debug.LogError("BoardGame instance not found!");
+        }
+    }
+
+    private void EnableGameComponents()
+    {
+        foreach (PlayerPiece player in BoardGame.Instance.players)
+        {
+            player.enabled = true;
+        }
+
+        var cameraController = FindObjectOfType<CameraController>();
+        if (cameraController != null)
+        {
+            cameraController.enabled = true;
+            cameraController.SetTarget(BoardGame.Instance.players[0].transform);
         }
     }
 

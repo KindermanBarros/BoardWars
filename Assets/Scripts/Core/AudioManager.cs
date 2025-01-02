@@ -54,4 +54,17 @@ public class AudioManager : MonoBehaviour
             PlayOneShot(attackSound);
         }
     }
+
+    public float GetVolume()
+    {
+        return audioSource != null ? audioSource.volume : 1.0f;
+    }
+
+    public void SetVolume(float volume)
+    {
+        if (audioSource != null)
+        {
+            audioSource.volume = volume;
+        }
+    }
 }

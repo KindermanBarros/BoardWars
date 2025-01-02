@@ -1,11 +1,19 @@
 using UnityEngine;
+using UnityEngine.UI;
+using TMPro;
 
 public class GameManager : Singleton<GameManager>
 {
     [SerializeField] private BoardGame boardGame;
     [SerializeField] private CameraController cameraController;
-    [SerializeField] private int winningScore = 2;
-    [SerializeField] private Canvas pauseMenuCanvas;
+    [SerializeField] private GameObject settingsMenu;
+    [SerializeField] private Slider audioSlider;
+    [SerializeField] private GameObject gameOverCanvas;
+    [SerializeField] private TMP_Text winnerText;
+    [SerializeField] private Button replayButton;
+    [SerializeField] private Button backToMenuButton;
+    [SerializeField] private GameObject mainMenuCanvas;
+    [SerializeField] private GameObject gameUICanvas;
 
     public Player Player1 { get; private set; }
     public Player Player2 { get; private set; }
@@ -24,9 +32,14 @@ public class GameManager : Singleton<GameManager>
         base.Awake();
         Application.targetFrameRate = 60;
 
-        if (pauseMenuCanvas != null)
+        if (settingsMenu != null)
         {
-            pauseMenuCanvas.gameObject.SetActive(false);
+            settingsMenu.SetActive(false);
+        }
+
+        if (audioSlider != null)
+        {
+            audioSlider.onValueChanged.AddListener(SetAudioVolume);
         }
     }
 
@@ -38,6 +51,16 @@ public class GameManager : Singleton<GameManager>
             cameraController = FindObjectOfType<CameraController>();
 
         CurrentState = GameState.Playing;
+
+        if (audioSlider != null)
+        {
+            audioSlider.value = AudioManager.Instance.GetVolume();
+        }
+
+        if (mainMenuCanvas != null)
+        {
+            mainMenuCanvas.SetActive(true);
+        }
     }
 
     public void InitializePlayers()
@@ -54,7 +77,19 @@ public class GameManager : Singleton<GameManager>
     public void StartGame()
     {
         CurrentState = GameState.Playing;
-        boardGame.InitializeGame(Player1, Player2);
+        if (mainMenuCanvas != null)
+        {
+            mainMenuCanvas.SetActive(false);
+        }
+        if (gameUICanvas != null)
+        {
+            gameUICanvas.SetActive(true);
+        }
+        if (boardGame != null)
+        {
+            boardGame.enabled = true;
+            boardGame.ResetAndInitialize(Player1, Player2);
+        }
     }
 
     public void PauseGame()
@@ -63,9 +98,9 @@ public class GameManager : Singleton<GameManager>
         {
             CurrentState = GameState.Paused;
             Time.timeScale = 0;
-            if (pauseMenuCanvas != null)
+            if (settingsMenu != null)
             {
-                pauseMenuCanvas.gameObject.SetActive(true);
+                settingsMenu.SetActive(true);
             }
         }
     }
@@ -76,16 +111,16 @@ public class GameManager : Singleton<GameManager>
         {
             CurrentState = GameState.Playing;
             Time.timeScale = 1;
-            if (pauseMenuCanvas != null)
+            if (settingsMenu != null)
             {
-                pauseMenuCanvas.gameObject.SetActive(false);
+                settingsMenu.SetActive(false);
             }
         }
     }
 
     public void CheckWinCondition(Player winner)
     {
-        if (winner.Wins >= winningScore)
+        if (winner.Wins >= 2)
         {
             EndGame(winner);
         }
@@ -103,10 +138,40 @@ public class GameManager : Singleton<GameManager>
             boardGame.enabled = false;
             boardGame.DisplayGameOver(winner);
         }
+
+        if (gameOverCanvas != null)
+        {
+            gameOverCanvas.transform.SetAsLastSibling();
+            gameOverCanvas.SetActive(true);
+            winnerText.text = $"{winner.Name} wins!";
+            replayButton.onClick.AddListener(RestartGame);
+            backToMenuButton.onClick.AddListener(BackToMainMenu);
+        }
+    }
+
+    public void BackToMainMenu()
+    {
+        if (mainMenuCanvas != null)
+        {
+            mainMenuCanvas.SetActive(true);
+        }
+        if (gameOverCanvas != null)
+        {
+            gameOverCanvas.SetActive(false);
+        }
+        if (boardGame != null)
+        {
+            boardGame.enabled = false;
+        }
+        CurrentState = GameState.MainMenu;
     }
 
     public void RestartGame()
     {
+        if (gameOverCanvas != null)
+        {
+            gameOverCanvas.SetActive(false);
+        }
         if (boardGame != null)
         {
             CharacterVariant p1Variant = Player1?.Variant ?? CharacterVariant.Default;
@@ -126,14 +191,44 @@ public class GameManager : Singleton<GameManager>
         if (Input.GetKeyDown(KeyCode.Escape))
         {
             if (CurrentState == GameState.Playing)
+            {
                 PauseGame();
+            }
             else if (CurrentState == GameState.Paused)
+            {
                 ResumeGame();
+            }
+            else if (settingsMenu != null && settingsMenu.activeSelf)
+            {
+                settingsMenu.SetActive(false);
+            }
         }
 
         if (Input.GetKeyDown(KeyCode.R))
         {
             RestartGame();
         }
+    }
+
+    public void ToggleSettingsMenu()
+    {
+        if (settingsMenu != null)
+        {
+            settingsMenu.SetActive(!settingsMenu.activeSelf);
+        }
+    }
+
+    public void CloseSettingsMenu()
+    {
+        if (settingsMenu != null)
+        {
+            settingsMenu.SetActive(false);
+            ResumeGame();
+        }
+    }
+
+    private void SetAudioVolume(float volume)
+    {
+        AudioManager.Instance.SetVolume(volume);
     }
 }

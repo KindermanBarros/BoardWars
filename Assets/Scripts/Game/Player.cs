@@ -35,11 +35,12 @@ public class Player
         {
             case CharacterVariant.FastMovement:
                 Movement = 4;
+                Power = 10;
                 Health = 50;
                 break;
             case CharacterVariant.StrongAttack:
-                Movement = 2;
-                Power = 15;
+                Movement = 3;
+                Power = 30;
                 Health = 35;
                 break;
             case CharacterVariant.HighHealth:

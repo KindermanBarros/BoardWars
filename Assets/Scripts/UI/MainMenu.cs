@@ -12,6 +12,7 @@ public class MainMenu : MonoBehaviour
     [SerializeField] private GameObject boardGameObject;
     [SerializeField] private MainSettings mainSettings;
 
+
     private void Start()
     {
         mainMenuCanvas.SetActive(true);
