@@ -1,6 +1,6 @@
 # Board Wars
 
-Welcome to **Board Wars**, a strategic board game developed as a code challenge by Kinderman. This game involves tactical movement, dice rolls, and battles between player pieces on a hexagonal grid.
+Welcome to **Board Wars**, a strategic board game developed as a code challenge. This game involves tactical movement, dice rolls, and battles between player pieces on a hexagonal grid.
 
 ## Table of Contents
 
