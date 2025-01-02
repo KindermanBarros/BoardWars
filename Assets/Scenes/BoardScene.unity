@@ -7012,7 +7012,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   mainMenuCanvas: {fileID: 1425410580}
   settingsCanvas: {fileID: 7715481621539264581}
-  gameUI: {fileID: 2047960591}
+  gameUI: {fileID: 2059330604}
   boardGame: {fileID: 25982042}
   player1Dropdown: {fileID: 1479668026}
   player2Dropdown: {fileID: 384249756}

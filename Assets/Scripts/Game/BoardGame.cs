@@ -10,6 +10,7 @@ public class BoardGame : MonoBehaviour
     [SerializeField] public PlayerPiece[] players;
     [SerializeField] private Material possibleMoveHighlightMaterial;
     [SerializeField] private CameraController cameraController;
+    [SerializeField] private Canvas EndScreen;
 
     [SerializeField] private TMP_Text movesText;
     [SerializeField] private TMP_Text healthText;
@@ -68,13 +69,6 @@ public class BoardGame : MonoBehaviour
 
     private void Update()
     {
-        // Ensure we have a valid camera reference
-        if (mainCamera == null)
-        {
-            mainCamera = Camera.main;
-            if (mainCamera == null) return; // Skip input handling if no camera
-        }
-
         if (Input.GetMouseButtonDown(0))
         {
             HandleMouseDown();
@@ -131,7 +125,6 @@ public class BoardGame : MonoBehaviour
         {
             return true;
         }
-
         foreach (HexCell neighbor in cell.Neighbors)
         {
             if (IsCellOccupied(neighbor))
@@ -139,7 +132,6 @@ public class BoardGame : MonoBehaviour
                 return true;
             }
         }
-
         return false;
     }
 
@@ -169,6 +161,7 @@ public class BoardGame : MonoBehaviour
         movesText.text = $"{winner.Name} WINS THE GAME! {finalScore}";
         healthText.text = "Game Over";
         powerText.text = "Press R to Restart";
+        EndScreen.enabled = true;
     }
 
     private void HandleMovement(HexCell targetCell, PlayerPiece movingPlayer)
@@ -220,48 +213,38 @@ public class BoardGame : MonoBehaviour
     private bool ApplyKnockback(PlayerPiece knockedPiece, PlayerPiece source, int distance)
     {
         Debug.Log($"Applying knockback to {knockedPiece.name} from {source.name}, distance: {distance}");
-
         HexCell knockbackCell = hexGrid.GetCellInDirection(knockedPiece.CurrentCell, source.CurrentCell, distance);
-
         if (knockbackCell == null)
         {
             Debug.Log($"Ring out! {knockedPiece.name} knocked off board");
             HandleRoundWin(source);
             return false;
         }
-
         knockedPiece.MoveTo(knockbackCell);
-
         if (knockbackCell.CurrentCollectable != null)
         {
             CollectCollectable(knockedPiece, knockbackCell.CollectCollectable());
             cellsWithCollectables.Remove(knockbackCell);
             CheckAndRefillCollectables();
         }
-
         return true;
     }
 
     private void ResolveBattle(PlayerPiece attacker, PlayerPiece defender)
     {
         AudioManager.Instance.PlayAttack();
-
         Battle.BattleResult result = Battle.ResolveBattle(attacker, defender);
-
         if (!ApplyKnockback(result.Loser, result.Winner, 1))
         {
             return;
         }
-
         result.Loser.TakeDamage(result.DamageDealt, attacker);
         if (result.Loser.Health <= 0)
         {
             HandleRoundWin(result.Winner);
             return;
         }
-
         UpdateUI();
-
         if (remainingMoves <= 0)
         {
             EndTurn();
@@ -276,7 +259,6 @@ public class BoardGame : MonoBehaviour
     {
         PlayerPiece currentPlayer = players[currentPlayerIndex];
         PlayerPiece adjacentEnemy = FindAdjacentEnemy(currentPlayer);
-
         if (adjacentEnemy != null)
         {
             Debug.Log($"Start turn check: {currentPlayer.name} is adjacent to {adjacentEnemy.name}");
@@ -285,7 +267,6 @@ public class BoardGame : MonoBehaviour
                 return;
             }
         }
-
         remainingMoves = players[currentPlayerIndex].Player.Movement;
         UpdateUI();
         HighlightPossibleMoves(currentPlayer.CurrentCell);
@@ -374,6 +355,8 @@ public class BoardGame : MonoBehaviour
         remainingMoves = maxMovesPerTurn;
         isDragging = false;
         draggingPlayerPiece = null;
+        EndScreen.enabled = false;
+
 
         UpdateUI();
         UpdateCameraTarget();
@@ -589,6 +572,8 @@ public class BoardGame : MonoBehaviour
         gameEnded = false;
         enabled = true;
         remainingMoves = maxMovesPerTurn;
+        EndScreen.enabled = false;
+
         foreach (PlayerPiece player in players)
         {
             player.Player.ResetWins();
@@ -622,6 +607,7 @@ public class BoardGame : MonoBehaviour
         remainingMoves = players[currentPlayerIndex].Player.Movement;
         currentPlayerIndex = 0;
         gameEnded = false;
+        EndScreen.enabled = false;
         UpdateUI();
         HighlightPossibleMoves(players[currentPlayerIndex].CurrentCell);
         SpawnInitialCollectables();
@@ -630,7 +616,6 @@ public class BoardGame : MonoBehaviour
 
     public void ResetAndInitialize(Player player1, Player player2)
     {
-        // Clear existing state
         foreach (var cell in cellsWithCollectables.ToList())
         {
             if (cell?.CurrentCollectable != null)
@@ -640,13 +625,12 @@ public class BoardGame : MonoBehaviour
         }
         cellsWithCollectables.Clear();
 
-        // Reset game state
         currentPlayerIndex = 0;
         gameEnded = false;
         isDragging = false;
         playerWins = new int[players.Length];
 
-        foreach (PlayerPiece player in players)
+        for (int i = 0; i < players.Length; i++)
         {
             HexCell startCell = null;
             while (startCell == null || IsCellOccupiedOrAdjacent(startCell))
@@ -654,13 +638,13 @@ public class BoardGame : MonoBehaviour
                 startCell = hexGrid.GetRandomCell();
             }
 
-            Player playerRef = player.Type == PlayerPiece.PlayerType.Player1 ? player1 : player2;
-            player.Initialize(playerRef, startCell, player.Type);
+            Player playerRef = i == 0 ? player1 : player2;
+            players[i].Initialize(playerRef, startCell, players[i].Type);
         }
 
         remainingMoves = players[currentPlayerIndex].Player.Movement;
         mainCamera = Camera.main;
-
+        EndScreen.enabled = false;
         UpdateUI();
         HighlightPossibleMoves(players[currentPlayerIndex].CurrentCell);
         SpawnInitialCollectables();

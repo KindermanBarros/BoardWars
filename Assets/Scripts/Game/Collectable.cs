@@ -17,7 +17,6 @@ public class Collectable : MonoBehaviour
     {
         if (type == null)
         {
-            Debug.LogError("Trying to initialize Collectable with null CollectableType!");
             return;
         }
 
@@ -29,15 +28,12 @@ public class Collectable : MonoBehaviour
             renderer.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
             renderer.receiveShadows = true;
         }
-
-        Debug.Log($"Initialized collectable: {type.displayName} - Tier: {tier}");
     }
 
     public int GetValue()
     {
         if (typeData == null)
         {
-            Debug.LogError("Collectable not properly initialized!");
             return 0;
         }
 

@@ -42,8 +42,8 @@ public class PlayerPiece : MonoBehaviour
     {
         Player = player;
         SetMaxHealth();
-        Health = MAX_HEALTH;    // Start with full health based on variant
-        Attack = player.Power;  // Set attack based on variant
+        Health = MAX_HEALTH;
+        Attack = player.Power;
         attackBonus = 0;
         extraDiceRolls = 0;
 
@@ -82,7 +82,7 @@ public class PlayerPiece : MonoBehaviour
 
     public void Heal(int amount)
     {
-        if (MAX_HEALTH <= 0) SetMaxHealth(); // Safety check
+        if (MAX_HEALTH <= 0) SetMaxHealth();
         int newHealth = Mathf.Min(Health + amount, MAX_HEALTH);
         int actualHeal = newHealth - Health;
         Health = newHealth;
@@ -100,17 +100,14 @@ public class PlayerPiece : MonoBehaviour
             Vector3 particlePosition = transform.position + directionToAttacker * 0.5f + Vector3.up * 0.5f;
             GameObject particleObj = Instantiate(damageParticlePrefab, particlePosition, Quaternion.LookRotation(-directionToAttacker));
 
-            // Get the ParticleSystem component
             ParticleSystem ps = particleObj.GetComponent<ParticleSystem>();
             if (ps != null)
             {
-                // Destroy the particle object after its duration
                 float totalDuration = ps.main.duration + ps.main.startLifetime.constant;
                 Destroy(particleObj, totalDuration);
             }
             else
             {
-                // Fallback if no ParticleSystem found
                 Destroy(particleObj, 2f);
             }
         }
@@ -126,20 +123,13 @@ public class PlayerPiece : MonoBehaviour
 
     public void OnTurnEnd()
     {
-        // Reset temporary bonuses at end of turn
         attackBonus = 0;
         extraDiceRolls = 0;
         Debug.Log($"{gameObject.name} turn ended, reset temporary bonuses");
     }
 
-    private void EndTurn()
-    {
-
-    }
-
     public int GetTotalAttack() => Attack + attackBonus;
 
-    // Add this method to get temporary attack value
     public int GetTemporaryAttack()
     {
         return attackBonus;
@@ -156,7 +146,6 @@ public class PlayerPiece : MonoBehaviour
         return extraDiceRolls;
     }
 
-    // Remove GetMovementRange method as it's no longer needed
 
     private IEnumerator JumpAnimation()
     {

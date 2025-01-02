@@ -25,18 +25,17 @@ public class MainSettings : MonoBehaviour
 
         var options = new List<TMP_Dropdown.OptionData>
         {
-            new TMP_Dropdown.OptionData("Default (Balanced)"),
-            new TMP_Dropdown.OptionData("Fast Movement (More Moves)"),
-            new TMP_Dropdown.OptionData("Strong Attack (High Damage)"),
-            new TMP_Dropdown.OptionData("High Health (Tanky)")
+            new TMP_Dropdown.OptionData("Default"),
+            new TMP_Dropdown.OptionData("Fast Movement"),
+            new TMP_Dropdown.OptionData("Strong Attack"),
+            new TMP_Dropdown.OptionData("High Health")
         };
 
         player1Dropdown.options = options;
         player2Dropdown.options = new List<TMP_Dropdown.OptionData>(options);
 
-        // Set different default selections
-        player1Dropdown.value = 0;  // Default for Player 1
-        player2Dropdown.value = 2;  // Strong Attack for Player 2
+        player1Dropdown.value = 0;
+        player2Dropdown.value = 0;
     }
 
     public void StartGame()

@@ -34,25 +34,24 @@ public class Player
         switch (Variant)
         {
             case CharacterVariant.FastMovement:
-                Movement = 4;    // 4 moves per turn
-                Power = 8;      // -2 power
-                Health = 50;    // normal health
+                Movement = 4;
+                Health = 50;
                 break;
             case CharacterVariant.StrongAttack:
-                Movement = 2;    // 2 moves per turn
-                Power = 15;     // +5 power
-                Health = 35;    // -15 health
+                Movement = 2;
+                Power = 15;
+                Health = 35;
                 break;
             case CharacterVariant.HighHealth:
-                Movement = 2;    // 2 moves per turn
-                Power = 10;     // normal power
-                Health = 75;    // +25 health
+                Movement = 2;
+                Power = 10;
+                Health = 75;
                 break;
             case CharacterVariant.Default:
             default:
-                Movement = 3;    // 3 moves per turn (default)
-                Power = 10;     // normal power
-                Health = 50;    // normal health
+                Movement = 3;
+                Power = 10;
+                Health = 50;
                 break;
         }
     }
