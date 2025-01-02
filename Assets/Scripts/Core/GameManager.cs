@@ -4,7 +4,7 @@ public class GameManager : Singleton<GameManager>
 {
     [SerializeField] private BoardGame boardGame;
     [SerializeField] private CameraController cameraController;
-    [SerializeField] private int winningScore = 2; // Changed to 2 for best-of-3
+    [SerializeField] private int winningScore = 2;
     [SerializeField] private Canvas pauseMenuCanvas;
 
     public Player Player1 { get; private set; }
@@ -23,7 +23,6 @@ public class GameManager : Singleton<GameManager>
     {
         base.Awake();
         Application.targetFrameRate = 60;
-        InitializePlayers();
 
         if (pauseMenuCanvas != null)
         {
@@ -38,13 +37,18 @@ public class GameManager : Singleton<GameManager>
         if (cameraController == null)
             cameraController = FindObjectOfType<CameraController>();
 
-        StartGame();
+        CurrentState = GameState.Playing;
     }
 
-    private void InitializePlayers()
+    public void InitializePlayers()
     {
         Player1 = new Player("Player 1");
         Player2 = new Player("Player 2");
+
+        if (boardGame != null)
+        {
+            boardGame.InitializeGame(Player1, Player2);
+        }
     }
 
     public void StartGame()
@@ -79,15 +83,11 @@ public class GameManager : Singleton<GameManager>
         }
     }
 
-    public void CheckWinCondition()
+    public void CheckWinCondition(Player winner)
     {
-        if (Player1.Wins >= winningScore)
+        if (winner.Wins >= winningScore)
         {
-            EndGame(Player1);
-        }
-        else if (Player2.Wins >= winningScore)
-        {
-            EndGame(Player2);
+            EndGame(winner);
         }
     }
 
@@ -107,14 +107,17 @@ public class GameManager : Singleton<GameManager>
 
     public void RestartGame()
     {
-        Player1.ResetWins();
-        Player2.ResetWins();
-        CurrentState = GameState.Playing;
-
         if (boardGame != null)
         {
+            CharacterVariant p1Variant = Player1?.Variant ?? CharacterVariant.Default;
+            CharacterVariant p2Variant = Player2?.Variant ?? CharacterVariant.Default;
+
+            Player1 = new Player("Player 1", p1Variant);
+            Player2 = new Player("Player 2", p2Variant);
+
+            CurrentState = GameState.Playing;
             boardGame.enabled = true;
-            boardGame.InitializeGame(Player1, Player2);
+            boardGame.ResetAndInitialize(Player1, Player2);
         }
     }
 

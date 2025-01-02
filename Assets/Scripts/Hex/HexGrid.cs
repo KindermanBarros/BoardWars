@@ -1,5 +1,6 @@
 using UnityEngine;
 using System.Collections.Generic;
+using System.Linq;
 
 public class HexGrid : MonoBehaviour
 {
@@ -130,17 +131,31 @@ public class HexGrid : MonoBehaviour
         return IsValidCell(offsetCoordinates) ? cells[HexMetrics.OffsetToCube(x, z, Orientation)] : null;
     }
 
+    public int GetDistance(HexCell from, HexCell to)
+    {
+        if (from == null || to == null) return int.MaxValue;
+
+        // Using cube coordinates for distance calculation
+        Vector3 fromCube = from.CubeCoordinates;
+        Vector3 toCube = to.CubeCoordinates;
+
+        // Calculate the Manhattan distance in cube coordinates
+        return Mathf.Max(
+            Mathf.Abs((int)(fromCube.x - toCube.x)),
+            Mathf.Abs((int)(fromCube.y - toCube.y)),
+            Mathf.Abs((int)(fromCube.z - toCube.z))
+        );
+    }
+
     public void HighlightPossibleMoves(HexCell currentCell, Material highlightMaterial)
     {
-        if (currentCell == null)
-        {
-            Debug.LogError("HighlightPossibleMoves: currentCell is null");
-            return;
-        }
+        ClearHighlights();
+        if (currentCell == null) return;
 
-        foreach (HexCell neighbor in currentCell.Neighbors)
+        // Only highlight adjacent cells
+        foreach (var neighbor in currentCell.Neighbors)
         {
-            if (neighbor != null)
+            if (!BoardGame.Instance.IsCellOccupied(neighbor))
             {
                 MeshRenderer renderer = neighbor.GetComponent<MeshRenderer>();
                 if (renderer != null)
@@ -149,6 +164,11 @@ public class HexGrid : MonoBehaviour
                 }
             }
         }
+    }
+
+    private bool IsCellOccupied(HexCell cell)
+    {
+        return BoardGame.Instance?.players.Any(p => p.CurrentCell == cell) ?? false;
     }
 
     public void ClearHighlights()

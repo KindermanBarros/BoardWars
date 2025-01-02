@@ -17,9 +17,12 @@ public class PlayerPiece : MonoBehaviour
     }
 
     private const float PIECE_HEIGHT = 0.5f;
-    private const int MAX_HEALTH = 100;
+    private int MAX_HEALTH;
     private int attackBonus;
     private int extraDiceRolls;
+
+
+    [SerializeField] private GameObject damageParticlePrefab;
 
     private void Awake()
     {
@@ -30,27 +33,39 @@ public class PlayerPiece : MonoBehaviour
         collider.isTrigger = false;
     }
 
-    public void Initialize(Player player, int health, int attack, HexCell startCell, PlayerType type)
+    private void SetMaxHealth()
+    {
+        MAX_HEALTH = Player.Health;
+    }
+
+    public void Initialize(Player player, HexCell startCell, PlayerType type)
     {
         Player = player;
-        Health = health;
-        Attack = attack;
+        SetMaxHealth();
+        Health = MAX_HEALTH;    // Start with full health based on variant
+        Attack = player.Power;  // Set attack based on variant
         attackBonus = 0;
         extraDiceRolls = 0;
 
         CurrentCell = startCell;
         transform.position = startCell.transform.position + Vector3.up * PIECE_HEIGHT;
         Type = type;
+
+        Debug.Log($"Initialized {type} with variant {player.Variant}: Power={Attack}, Health={Health}/{MAX_HEALTH}, Moves={player.Movement}");
     }
 
     public void MoveTo(HexCell targetCell)
     {
+        if (targetCell == null) return;
+
         CurrentCell = targetCell;
         transform.position = targetCell.transform.position + Vector3.up * PIECE_HEIGHT;
         StartCoroutine(JumpAnimation());
 
-        // Update highlights after moving
-        BoardGame.Instance.HighlightPossibleMoves(CurrentCell);
+        if (!BoardGame.Instance.isAttacking)
+        {
+            AudioManager.Instance?.PlayMove();
+        }
     }
 
     public void ResetPosition(HexCell cell)
@@ -67,16 +82,38 @@ public class PlayerPiece : MonoBehaviour
 
     public void Heal(int amount)
     {
+        if (MAX_HEALTH <= 0) SetMaxHealth(); // Safety check
         int newHealth = Mathf.Min(Health + amount, MAX_HEALTH);
         int actualHeal = newHealth - Health;
         Health = newHealth;
         Debug.Log($"Healed for {actualHeal}. Current health: {Health}/{MAX_HEALTH}");
     }
 
-    public void TakeDamage(int damage)
+    public void TakeDamage(int damage, PlayerPiece attacker)
     {
         Health = Mathf.Max(0, Health - damage);
         Debug.Log($"{gameObject.name} takes {damage} damage. Health: {Health}");
+
+        if (damageParticlePrefab != null && attacker != null)
+        {
+            Vector3 directionToAttacker = (attacker.transform.position - transform.position).normalized;
+            Vector3 particlePosition = transform.position + directionToAttacker * 0.5f + Vector3.up * 0.5f;
+            GameObject particleObj = Instantiate(damageParticlePrefab, particlePosition, Quaternion.LookRotation(-directionToAttacker));
+
+            // Get the ParticleSystem component
+            ParticleSystem ps = particleObj.GetComponent<ParticleSystem>();
+            if (ps != null)
+            {
+                // Destroy the particle object after its duration
+                float totalDuration = ps.main.duration + ps.main.startLifetime.constant;
+                Destroy(particleObj, totalDuration);
+            }
+            else
+            {
+                // Fallback if no ParticleSystem found
+                Destroy(particleObj, 2f);
+            }
+        }
 
         if (Health <= 0)
         {
@@ -89,7 +126,10 @@ public class PlayerPiece : MonoBehaviour
 
     public void OnTurnEnd()
     {
-
+        // Reset temporary bonuses at end of turn
+        attackBonus = 0;
+        extraDiceRolls = 0;
+        Debug.Log($"{gameObject.name} turn ended, reset temporary bonuses");
     }
 
     private void EndTurn()
@@ -98,6 +138,12 @@ public class PlayerPiece : MonoBehaviour
     }
 
     public int GetTotalAttack() => Attack + attackBonus;
+
+    // Add this method to get temporary attack value
+    public int GetTemporaryAttack()
+    {
+        return attackBonus;
+    }
 
     public void AddExtraDiceRoll(int amount)
     {
@@ -109,6 +155,8 @@ public class PlayerPiece : MonoBehaviour
     {
         return extraDiceRolls;
     }
+
+    // Remove GetMovementRange method as it's no longer needed
 
     private IEnumerator JumpAnimation()
     {

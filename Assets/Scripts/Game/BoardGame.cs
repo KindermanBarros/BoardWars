@@ -14,6 +14,7 @@ public class BoardGame : MonoBehaviour
     [SerializeField] private TMP_Text movesText;
     [SerializeField] private TMP_Text healthText;
     [SerializeField] private TMP_Text powerText;
+    [SerializeField] private string scoreTextFormat = "(Score: {0}-{1})";
 
     [SerializeField] private CollectableType[] collectableTypes;
     [SerializeField] private float collectableSpawnRate = 0.2f;
@@ -30,7 +31,7 @@ public class BoardGame : MonoBehaviour
     private List<HexCell> cellsWithCollectables = new List<HexCell>();
     private int totalCollectables;
 
-    private bool resolvingBattle = false;
+    public bool isAttacking = false;
 
     public int[] playerWins;
     private bool gameEnded = false;
@@ -53,28 +54,27 @@ public class BoardGame : MonoBehaviour
     private void Start()
     {
         mainCamera = Camera.main;
-        Debug.Log("BoardGame starting. Number of players: " + players.Length);
-
         playerWins = new int[players.Length];
+    }
 
-        InitializePlayers();
-        UpdateUI();
-        HighlightPossibleMoves(players[currentPlayerIndex].CurrentCell);
-
-        if (cameraController == null)
+    public void EnableCamera()
+    {
+        if (cameraController != null)
         {
-            cameraController = FindObjectOfType<CameraController>();
+            cameraController.enabled = true;
+            UpdateCameraTarget();
         }
-        UpdateCameraTarget();
-
-        Debug.Log($"Current player position: {players[currentPlayerIndex].transform.position}");
-        Debug.Log($"Remaining moves: {remainingMoves}");
-
-        SpawnInitialCollectables();
     }
 
     private void Update()
     {
+        // Ensure we have a valid camera reference
+        if (mainCamera == null)
+        {
+            mainCamera = Camera.main;
+            if (mainCamera == null) return; // Skip input handling if no camera
+        }
+
         if (Input.GetMouseButtonDown(0))
         {
             HandleMouseDown();
@@ -114,8 +114,8 @@ public class BoardGame : MonoBehaviour
                 startCell = hexGrid.GetRandomCell();
             }
             usedCells.Add(startCell);
-            player.Initialize(new Player($"Player {player.Type}"), 100, 10, startCell, player.Type);
-            player.transform.position = startCell.transform.position + Vector3.up * 0.5f;
+
+            player.Initialize(player.Player, startCell, player.Type);
         }
         remainingMoves = maxMovesPerTurn;
     }
@@ -143,16 +143,10 @@ public class BoardGame : MonoBehaviour
         return false;
     }
 
-    private bool IsCellOccupied(HexCell cell)
+    public bool IsCellOccupied(HexCell cell)
     {
-        foreach (PlayerPiece player in players)
-        {
-            if (player.CurrentCell == cell)
-            {
-                return true;
-            }
-        }
-        return false;
+        if (cell == null) return false;
+        return players.Any(p => p.CurrentCell == cell);
     }
 
     private void UpdateUI()
@@ -160,33 +154,41 @@ public class BoardGame : MonoBehaviour
         PlayerPiece currentPlayer = players[currentPlayerIndex];
         if (!gameEnded)
         {
-            string winText = $"(Score: {players[0].Player.Wins}-{players[1].Player.Wins})";
-            movesText.text = $"Player {currentPlayerIndex + 1} Moves: {remainingMoves} {winText}";
-            Debug.Log($"Updated UI with scores: {winText}");
+            string winText = string.Format(scoreTextFormat, playerWins[0], playerWins[1]);
+            string variantText = $"[{currentPlayer.Player.Variant}]";
+            movesText.text = $"Player {currentPlayerIndex + 1} {variantText} | Moves: {remainingMoves}/{currentPlayer.Player.Movement} {winText}";
+            healthText.text = $"Health: {currentPlayer.Health}/{currentPlayer.Player.Health}";
+            powerText.text = $"Power: {currentPlayer.GetTotalAttack()} (Base: {currentPlayer.Attack} + Bonus: {currentPlayer.GetTemporaryAttack()})";
         }
-        healthText.text = $"Health: {currentPlayer.Health}/100";
-        powerText.text = $"Power: {currentPlayer.GetTotalAttack()} ({currentPlayer.Attack} + {currentPlayer.GetTotalAttack() - currentPlayer.Attack})";
     }
 
     public void DisplayGameOver(Player winner)
     {
         gameEnded = true;
-        movesText.text = $"{winner.Name} WINS THE GAME! ({players[0].Player.Wins}-{players[1].Player.Wins})";
+        string finalScore = string.Format(scoreTextFormat, playerWins[0], playerWins[1]);
+        movesText.text = $"{winner.Name} WINS THE GAME! {finalScore}";
         healthText.text = "Game Over";
         powerText.text = "Press R to Restart";
     }
 
     private void HandleMovement(HexCell targetCell, PlayerPiece movingPlayer)
     {
-        if (!IsValidMove(targetCell)) return;
+        if (targetCell == null)
+        {
+            Debug.LogError("HandleMovement: targetCell is null");
+            return;
+        }
 
-        // Clear previous highlights
+        if (movingPlayer == null)
+        {
+            Debug.LogError("HandleMovement: movingPlayer is null");
+            return;
+        }
+
         hexGrid.ClearHighlights();
 
-        // Execute move
         movingPlayer.MoveTo(targetCell);
 
-        // Handle collectible collection
         if (targetCell.CurrentCollectable != null)
         {
             CollectCollectable(movingPlayer, targetCell.CollectCollectable());
@@ -194,17 +196,16 @@ public class BoardGame : MonoBehaviour
             CheckAndRefillCollectables();
         }
 
-        // Check for battle after movement
         PlayerPiece adjacentEnemy = FindAdjacentEnemy(movingPlayer);
         remainingMoves--;
 
         UpdateUI();
 
-        // Handle battle or turn end
         if (adjacentEnemy != null)
         {
-            resolvingBattle = true;
+            isAttacking = true;
             ResolveBattle(movingPlayer, adjacentEnemy);
+            isAttacking = false;
         }
         else if (remainingMoves <= 0)
         {
@@ -212,7 +213,6 @@ public class BoardGame : MonoBehaviour
         }
         else
         {
-            // Highlight possible moves for the current player
             HighlightPossibleMoves(movingPlayer.CurrentCell);
         }
     }
@@ -244,23 +244,22 @@ public class BoardGame : MonoBehaviour
 
     private void ResolveBattle(PlayerPiece attacker, PlayerPiece defender)
     {
+        AudioManager.Instance.PlayAttack();
+
         Battle.BattleResult result = Battle.ResolveBattle(attacker, defender);
 
-        // Apply knockback first
         if (!ApplyKnockback(result.Loser, result.Winner, 1))
         {
-            return; // Battle ended due to ring-out
+            return;
         }
 
-        // Apply damage after knockback
-        result.Loser.TakeDamage(result.DamageDealt);
+        result.Loser.TakeDamage(result.DamageDealt, attacker);
         if (result.Loser.Health <= 0)
         {
             HandleRoundWin(result.Winner);
             return;
         }
 
-        resolvingBattle = false;
         UpdateUI();
 
         if (remainingMoves <= 0)
@@ -269,7 +268,6 @@ public class BoardGame : MonoBehaviour
         }
         else
         {
-            // Highlight possible moves for the current player
             HighlightPossibleMoves(players[currentPlayerIndex].CurrentCell);
         }
     }
@@ -288,7 +286,7 @@ public class BoardGame : MonoBehaviour
             }
         }
 
-        remainingMoves = maxMovesPerTurn;
+        remainingMoves = players[currentPlayerIndex].Player.Movement;
         UpdateUI();
         HighlightPossibleMoves(currentPlayer.CurrentCell);
     }
@@ -323,18 +321,22 @@ public class BoardGame : MonoBehaviour
 
     public void HandleWin(PlayerPiece winner)
     {
-        winner.Player.AddWin();
-        Debug.Log($"Win recorded! Score is now: {players[0].Player.Wins}-{players[1].Player.Wins}");
-
-        if (winner.Player.Wins >= 2)
+        int winnerIndex = System.Array.IndexOf(players, winner);
+        if (winnerIndex >= 0)
         {
-            GameManager.Instance.CheckWinCondition();
-        }
-        else
-        {
-            ResetRound();
-        }
+            playerWins[winnerIndex]++;
+            winner.Player.AddWin();
+            Debug.Log($"Win recorded for player {winnerIndex + 1}! Score is now: {playerWins[0]}-{playerWins[1]}");
 
+            if (playerWins[winnerIndex] >= 2)
+            {
+                GameManager.Instance.CheckWinCondition(winner.Player);
+            }
+            else
+            {
+                ResetRound();
+            }
+        }
         UpdateUI();
     }
 
@@ -363,17 +365,16 @@ public class BoardGame : MonoBehaviour
             startCells.Add(startCell);
 
             Player currentPlayer = player.Player;
-            player.Initialize(currentPlayer, 100, 10, startCell, player.Type);
+
+            player.Initialize(currentPlayer, startCell, player.Type);
             player.PlayResetAnimation();
         }
 
         currentPlayerIndex = 0;
         remainingMoves = maxMovesPerTurn;
-        resolvingBattle = false;
         isDragging = false;
         draggingPlayerPiece = null;
 
-        Debug.Log($"Reset moves to: {remainingMoves}");
         UpdateUI();
         UpdateCameraTarget();
         HighlightPossibleMoves(players[currentPlayerIndex].CurrentCell);
@@ -382,29 +383,16 @@ public class BoardGame : MonoBehaviour
 
     private bool IsValidMove(HexCell targetCell)
     {
-        if (targetCell == null)
-        {
-            Debug.LogError("IsValidMove: targetCell is null");
-            return false;
-        }
+        if (targetCell == null) return false;
 
         PlayerPiece currentPlayer = players[currentPlayerIndex];
         HexCell currentCell = currentPlayer.CurrentCell;
 
-        if (currentCell == null || targetCell == currentCell || !hexGrid.IsAdjacent(currentCell, targetCell))
-        {
-            return false;
-        }
+        if (currentCell == null || targetCell == currentCell) return false;
 
-        foreach (PlayerPiece player in players)
-        {
-            if (player.CurrentCell == targetCell)
-            {
-                return false;
-            }
-        }
+        if (!hexGrid.IsAdjacent(currentCell, targetCell)) return false;
 
-        return true;
+        return !players.Any(p => p.CurrentCell == targetCell);
     }
 
     private void EndTurn()
@@ -413,7 +401,7 @@ public class BoardGame : MonoBehaviour
         currentPlayerIndex = (currentPlayerIndex + 1) % players.Length;
         remainingMoves = maxMovesPerTurn;
 
-        StartTurn(); // Add this to check for knockback at start of next turn
+        StartTurn();
         UpdateCameraTarget();
     }
 
@@ -509,6 +497,8 @@ public class BoardGame : MonoBehaviour
 
     private Vector3 GetMouseWorldPosition()
     {
+        if (mainCamera == null) return Vector3.zero;
+
         Plane plane = new Plane(Vector3.up, Vector3.up * 0.5f);
         Ray ray = mainCamera.ScreenPointToRay(Input.mousePosition);
 
@@ -540,14 +530,12 @@ public class BoardGame : MonoBehaviour
     {
         if (collectableTypes == null || collectableTypes.Length == 0)
         {
-            Debug.LogError("No CollectableTypes assigned to BoardGame!");
             return;
         }
 
         CollectableType randomType = collectableTypes[Random.Range(0, collectableTypes.Length)];
         if (randomType == null || randomType.visualPrefab == null)
         {
-            Debug.LogError("Invalid CollectableType or missing visualPrefab!");
             return;
         }
 
@@ -571,11 +559,14 @@ public class BoardGame : MonoBehaviour
 
     private void CollectCollectable(PlayerPiece player, Collectable collectable)
     {
+        if (collectable == null) return;
+
         int value = collectable.GetValue();
         switch (collectable.CollectableType)
         {
             case CollectableTypeEnum.ExtraMove:
                 remainingMoves += value;
+                Debug.Log($"Added {value} moves. Total moves now: {remainingMoves}");
                 break;
             case CollectableTypeEnum.ExtraAttack:
                 player.AddTemporaryAttack(value);
@@ -583,8 +574,13 @@ public class BoardGame : MonoBehaviour
             case CollectableTypeEnum.Health:
                 player.Heal(value);
                 break;
+            case CollectableTypeEnum.ExtraDice:
+                player.AddExtraDiceRoll(value);
+                break;
         }
+
         Destroy(collectable.gameObject);
+        AudioManager.Instance?.PlayCollect();
         UpdateUI();
     }
 
@@ -602,34 +598,72 @@ public class BoardGame : MonoBehaviour
 
     public void InitializeGame(Player player1, Player player2)
     {
-        if (players == null || players.Length < 2)
+        if (players == null || players.Length < 2) return;
+
+        mainCamera = Camera.main;
+        if (mainCamera == null)
         {
-            Debug.LogError("Not enough player pieces assigned!");
+            Debug.LogError("No main camera found!");
             return;
         }
 
         foreach (PlayerPiece player in players)
         {
-            HexCell startCell = null; while (startCell == null || IsCellOccupiedOrAdjacent(startCell))
+            HexCell startCell = null;
+            while (startCell == null || IsCellOccupiedOrAdjacent(startCell))
             {
                 startCell = hexGrid.GetRandomCell();
             }
 
             Player playerRef = player.Type == PlayerPiece.PlayerType.Player1 ? player1 : player2;
-            player.Initialize(playerRef, 100, 10, startCell, player.Type);
-            player.transform.position += Vector3.up * 0.5f;
+            player.Initialize(playerRef, startCell, player.Type);
         }
 
-        remainingMoves = maxMovesPerTurn;
+        remainingMoves = players[currentPlayerIndex].Player.Movement;
         currentPlayerIndex = 0;
         gameEnded = false;
-        resolvingBattle = false;
-        isDragging = false;
-        draggingPlayerPiece = null;
-
-        Debug.Log($"Initialized moves to: {remainingMoves}");
         UpdateUI();
         HighlightPossibleMoves(players[currentPlayerIndex].CurrentCell);
         SpawnInitialCollectables();
+        UpdateCameraTarget();
+    }
+
+    public void ResetAndInitialize(Player player1, Player player2)
+    {
+        // Clear existing state
+        foreach (var cell in cellsWithCollectables.ToList())
+        {
+            if (cell?.CurrentCollectable != null)
+            {
+                Destroy(cell.CurrentCollectable.gameObject);
+            }
+        }
+        cellsWithCollectables.Clear();
+
+        // Reset game state
+        currentPlayerIndex = 0;
+        gameEnded = false;
+        isDragging = false;
+        playerWins = new int[players.Length];
+
+        foreach (PlayerPiece player in players)
+        {
+            HexCell startCell = null;
+            while (startCell == null || IsCellOccupiedOrAdjacent(startCell))
+            {
+                startCell = hexGrid.GetRandomCell();
+            }
+
+            Player playerRef = player.Type == PlayerPiece.PlayerType.Player1 ? player1 : player2;
+            player.Initialize(playerRef, startCell, player.Type);
+        }
+
+        remainingMoves = players[currentPlayerIndex].Player.Movement;
+        mainCamera = Camera.main;
+
+        UpdateUI();
+        HighlightPossibleMoves(players[currentPlayerIndex].CurrentCell);
+        SpawnInitialCollectables();
+        UpdateCameraTarget();
     }
 }

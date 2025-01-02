@@ -5,7 +5,7 @@ public class Battle
 {
     private const int DICE_SIDES = 20;
     private const int BASE_DICE_COUNT = 3;
-    private const int RING_OUT_DAMAGE = 999;  // Add this constant
+    private const int RING_OUT_DAMAGE = 999;
 
     public class BattleResult
     {
@@ -63,7 +63,6 @@ public class Battle
         winner = attackerWins > defenderWins ? attacker : defender;
         loser = attackerWins > defenderWins ? defender : attacker;
 
-        // Set damage based on whether it's a ring-out or normal battle
         int damageDealt = winner.GetTotalAttack();
 
         Debug.Log($"\nBattle Result: {winner.name} wins" + (isRingOut ? " by ring-out!" : ""));
