@@ -27,7 +27,7 @@ Board Wars is a turn-based strategy game where players move their pieces on a he
 
 1. **Clone the Repository**:
     ```sh
-    git clone https://github.com/Kinderman/BoardWars.git
+    git clone https://github.com/KindermanBarros/BoardWars.git
     ```
 
 2. **Open in Unity**:
